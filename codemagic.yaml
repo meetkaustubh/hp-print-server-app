@@ -10,7 +10,7 @@ workflows:
       npm: 9.6.7
       java: 11
     scripts:
-      - name: Install Expo CLI properly
+      - name: Install Expo CLI and dependencies
         script: |
           npm install -g expo-cli@latest
           export PATH=$PATH:$(npm bin -g)
@@ -22,7 +22,7 @@ workflows:
           npx expo --version
       - name: Run Expo prebuild
         script: |
-          npx expo prebuild --platform android --clear
+          npx expo prebuild --platform android
       - name: Setup Android environment
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
