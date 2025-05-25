@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "HP Print Server",
+    "slug": "hp-print-server",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1976D2"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1976D2"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "BIND_PRINT_SERVICE",
+        "BIND_ACCESSIBILITY_SERVICE",
+        "SYSTEM_ALERT_WINDOW"
+      ],
+      "package": "com.hpprint.server"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
