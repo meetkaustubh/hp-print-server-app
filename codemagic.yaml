@@ -1,6 +1,6 @@
 workflows:
-  android-debug-build:
-    name: HP Print Server - Debug APK
+  android-simple:
+    name: HP Print Server - Simple Build
     max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
@@ -10,54 +10,32 @@ workflows:
       npm: 9.6.7
       java: 11
     scripts:
-      - name: Install dependencies
+      - name: Install Expo CLI properly
         script: |
-          npm install -g @expo/cli
+          npm install -g expo-cli@latest
+          export PATH=$PATH:$(npm bin -g)
           npm install
-      - name: Expo prebuild
+      - name: Verify Expo installation
         script: |
-          expo prebuild --platform android --clear
-      - name: Set up Android SDK
+          which expo
+          expo --version
+          npx expo --version
+      - name: Run Expo prebuild
+        script: |
+          npx expo prebuild --platform android --clear
+      - name: Setup Android environment
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
-      - name: Build debug APK
+      - name: Build APK
         script: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-      - name: List generated files
+      - name: Find APK files
         script: |
           find $CM_BUILD_DIR -name "*.apk" -type f
     artifacts:
       - android/app/build/outputs/**/*.apk
-    publishing:
-      email:
-        recipients:
-          - user@example.com
-        notify:
-          success: true
-          failure: false
-
-  expo-build:
-    name: HP Print Server - EAS Build  
-    max_build_duration: 60
-    instance_type: mac_mini_m1
-    environment:
-      vars:
-        EXPO_TOKEN: $EXPO_TOKEN
-      node: 18.17.0
-      npm: 9.6.7
-    scripts:
-      - name: Install EAS CLI
-        script: |
-          npm install -g @expo/cli eas-cli
-          npm install
-      - name: EAS Build APK
-        script: |
-          npm install
-          eas build --platform android --profile preview --non-interactive --no-wait
-    artifacts:
-      - "*.apk"
     publishing:
       email:
         recipients:
