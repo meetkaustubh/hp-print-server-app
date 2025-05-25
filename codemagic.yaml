@@ -1,0 +1,66 @@
+workflows:
+  android-debug-build:
+    name: HP Print Server - Debug APK
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      vars:
+        PACKAGE_NAME: "com.hpprint.server"
+      node: 18.17.0
+      npm: 9.6.7
+      java: 11
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install -g @expo/cli
+          npm ci
+      - name: Expo prebuild
+        script: |
+          expo prebuild --platform android --clear
+      - name: Set up Android SDK
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
+      - name: Build debug APK
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: List generated files
+        script: |
+          find $CM_BUILD_DIR -name "*.apk" -type f
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
+
+  expo-build:
+    name: HP Print Server - EAS Build  
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      vars:
+        EXPO_TOKEN: $EXPO_TOKEN
+      node: 18.17.0
+      npm: 9.6.7
+    scripts:
+      - name: Install EAS CLI
+        script: |
+          npm install -g @expo/cli eas-cli
+          npm ci
+      - name: EAS Build APK
+        script: |
+          eas build --platform android --profile preview --non-interactive --no-wait
+    artifacts:
+      - "*.apk"
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
