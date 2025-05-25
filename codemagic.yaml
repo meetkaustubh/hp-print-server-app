@@ -1,0 +1,86 @@
+workflows:
+  android-workflow:
+    name: Android Workflow
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      android_signing:
+        - keystore_reference
+      groups:
+        - google_play
+      vars:
+        PACKAGE_NAME: "com.hpprint.server"
+        GOOGLE_PLAY_TRACK: internal
+      node: 18.17.0
+      npm: 9.6.7
+      ndk: r25b
+      java: 11
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install -g @expo/cli
+          npm ci
+      - name: Set up app.json for build
+        script: |
+          echo "Setting up app configuration..."
+          cat app.json
+      - name: Expo prebuild
+        script: |
+          expo prebuild --platform android --clean
+      - name: Set up local.properties
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
+      - name: Build Android APK
+        script: |
+          cd android
+          ./gradlew assembleRelease
+      - name: Build Android AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/mapping.txt
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
+
+  expo-workflow:
+    name: Expo Workflow (Alternative)
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      groups:
+        - expo
+      vars:
+        EXPO_TOKEN: Encrypted(...)
+      node: 18.17.0
+      npm: 9.6.7
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm install -g @expo/cli eas-cli
+          npm ci
+      - name: Expo login
+        script: |
+          expo login -u $EXPO_USERNAME -p $EXPO_PASSWORD --non-interactive
+      - name: EAS build
+        script: |
+          eas build --platform android --non-interactive --wait
+    artifacts:
+      - "*.apk"
+      - "*.aab"
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
