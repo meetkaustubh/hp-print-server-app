@@ -3,11 +3,9 @@
     "name": "HP Print Server",
     "slug": "hp-print-server",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "orientation": "portrait", 
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#1976D2"
     },
@@ -30,9 +28,6 @@
         "SYSTEM_ALERT_WINDOW"
       ],
       "package": "com.hpprint.server"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     }
   }
 }
