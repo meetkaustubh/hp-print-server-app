@@ -8,7 +8,8 @@ workflows:
         PACKAGE_NAME: "com.hpprint.server"
       node: 18.17.0
       npm: 9.6.7
-      java: 11
+      java: 17
+      android: true
     scripts:
       - name: Install Expo CLI and dependencies
         script: |
