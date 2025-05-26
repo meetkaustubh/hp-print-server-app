@@ -16,32 +16,18 @@ workflows:
           export PATH=$PATH:$(npm bin -g)
           npm install
 
-      - name: Verify Expo installation
+      - name: Run Expo prebuild (ensure metro.config.js + android dir exists)
         script: |
-          which expo
-          expo --version
-          npx expo --version
-
-      - name: Run Expo prebuild
-        script: |
-          npx expo prebuild --platform android
-
-      - name: Create assets directory
-        script: |
-          mkdir -p android/app/src/main/assets
-
-      - name: Bundle JS for Android
-        script: |
-          npx react-native bundle \
-            --platform android \
-            --dev false \
-            --entry-file index.js \
-            --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res
+          npx expo prebuild --platform android --no-install
 
       - name: Setup Android environment
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
+
+      - name: Create assets and bundle JS for Android
+        script: |
+          mkdir -p android/app/src/main/assets
+          npx expo export --platform android --dev false --output-dir android/app/src/main/assets
 
       - name: Build release APK
         script: |
