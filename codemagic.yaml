@@ -1,45 +1,32 @@
 workflows:
-  android-simple:
-    name: HP Print Server - Simple Build
+  react-native-android:
+    name: React Native Android Build
     max_build_duration: 60
-    instance_type: mac_mini_m1
     environment:
       vars:
-        PACKAGE_NAME: "com.hpprint.server"
-      node: 18.17.0
-      npm: 9.6.7
+        JAVA_VERSION: 17
+      android_signing:
+        - release
+      node: 18.16.0
       java: 17
     scripts:
-      - name: Install Expo CLI and dependencies
+      - name: Install dependencies
         script: |
-          npm install -g expo-cli@latest
-          export PATH=$PATH:$(npm bin -g)
           npm install
-      - name: Verify Expo installation
+      - name: Create assets directory
         script: |
-          which expo
-          expo --version
-          npx expo --version
-      - name: Run Expo prebuild
+          mkdir -p android/app/src/main/assets
+      - name: Bundle React Native JS
         script: |
-          npx expo prebuild --platform android
-      - name: Setup Android environment
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
+      - name: Build Android release
         script: |
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
-      - name: Build APK
-        script: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
-      - name: Find APK files
-        script: |
-          find $CM_BUILD_DIR -name "*.apk" -type f
+          ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/**/*.apk
-    publishing:
-      email:
-        recipients:
-          - user@example.com
-        notify:
-          success: true
-          failure: false
+      - android/app/build/outputs/**/*.aab
