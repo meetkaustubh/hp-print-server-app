@@ -1,22 +1,36 @@
 workflows:
-  react-native-android:
-    name: React Native Android Build
+  android-release:
+    name: HP Print Server - Release Build
     max_build_duration: 60
+    instance_type: mac_mini_m1
     environment:
       vars:
-        JAVA_VERSION: 17
-      android_signing:
-        - release
-      node: 18.16.0
+        PACKAGE_NAME: "com.hpprint.server"
+      node: 18.17.0
+      npm: 9.6.7
       java: 17
     scripts:
-      - name: Install dependencies
+      - name: Install Expo CLI and dependencies
         script: |
+          npm install -g expo-cli@latest
+          export PATH=$PATH:$(npm bin -g)
           npm install
+
+      - name: Verify Expo installation
+        script: |
+          which expo
+          expo --version
+          npx expo --version
+
+      - name: Run Expo prebuild
+        script: |
+          npx expo prebuild --platform android
+
       - name: Create assets directory
         script: |
           mkdir -p android/app/src/main/assets
-      - name: Bundle React Native JS
+
+      - name: Bundle JS for Android
         script: |
           npx react-native bundle \
             --platform android \
@@ -24,9 +38,28 @@ workflows:
             --entry-file index.js \
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
-      - name: Build Android release
+
+      - name: Setup Android environment
         script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
+
+      - name: Build release APK
+        script: |
+          cd android
+          chmod +x gradlew
           ./gradlew assembleRelease
+
+      - name: Find APK files
+        script: |
+          find $CM_BUILD_DIR -name "*.apk" -type f
+
     artifacts:
       - android/app/build/outputs/**/*.apk
-      - android/app/build/outputs/**/*.aab
+
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
