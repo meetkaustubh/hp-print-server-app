@@ -26,16 +26,6 @@ workflows:
       - name: Setup Android environment
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > $CM_BUILD_DIR/android/local.properties
-      - name: Bundle JS for Android
-        script: |
-          mkdir -p android/app/src/main/assets
-          mkdir -p android/app/src/main/res
-          npx react-native bundle \
-            --platform android \
-            --dev false \
-            --entry-file index.js \
-            --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res
       - name: Build APK
         script: |
           cd android
