@@ -83,7 +83,7 @@ function createApp({ settings, printer, jobs, auth }) {
     const st = await printerStatus();
     const s = settings.all();
     const payOk = s.payment_mode === 'free' || jobs.razorpay().configured;
-    res.json({ ...settings.publicView(), ready: st.ready && payOk, printer_state: st.state, payment_ready: payOk });
+    res.json({ ...settings.publicView(), ready: st.ready && payOk, printer_state: st.state, payment_ready: payOk, paper_left: jobs.paperLeft() });
   });
 
   const uploadLimiter = limiter(10, 20);

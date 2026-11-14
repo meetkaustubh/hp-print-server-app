@@ -16,6 +16,8 @@ const DEFAULTS = {
   max_docs: 10,        // documents per order
   max_file_mb: 25,
   default_paper: 'A4',
+  paper_tracking: false, // count sheets in the tray and stop orders that would run out
+  paper_in_tray: 0,
   allow_duplex: true,
   allow_color: true,
   printer_name: '',    // CUPS queue name
@@ -52,6 +54,7 @@ const VALIDATORS = {
   price_bw: int(0, 1_000_000), price_color: int(0, 1_000_000), min_charge: int(0, 1_000_000),
   max_pages: int(1, config.HARD_MAX_PAGES), max_copies: int(1, 100), max_docs: int(1, 20), max_file_mb: int(1, config.HARD_MAX_FILE_MB),
   default_paper: oneOf(['A4', 'Letter', 'A3', 'Legal']),
+  paper_tracking: bool, paper_in_tray: int(0, 100000),
   allow_duplex: bool, allow_color: bool,
   printer_name: v => { v = str(120)(v); if (v && !/^[\p{L}\p{N} ._\-()#&+,]+$/u.test(v)) throw new Error('invalid printer name'); return v; },
   payment_mode: oneOf(['free', 'razorpay']),
@@ -108,7 +111,7 @@ class Settings {
       business_name: s.business_name, tagline: s.tagline, pickup_message: s.pickup_message, support_contact: s.support_contact,
       currency: s.currency, price_bw: s.price_bw, price_color: s.price_color, min_charge: s.min_charge,
       max_pages: s.max_pages, max_copies: s.max_copies, max_docs: s.max_docs, max_file_mb: s.max_file_mb, default_paper: s.default_paper,
-      allow_duplex: s.allow_duplex, allow_color: s.allow_color, payment_mode: s.payment_mode,
+      allow_duplex: s.allow_duplex, allow_color: s.allow_color, payment_mode: s.payment_mode, paper_tracking: s.paper_tracking,
       razorpay_key_id: s.payment_mode === 'razorpay' ? s.razorpay_key_id : '',
       accepts: this.acceptedExtensions(),
       terms_url: s.terms_url, privacy_url: s.privacy_url, refund_url: s.refund_url,

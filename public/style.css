@@ -311,3 +311,25 @@ body{font-size:16px;line-height:24px}
 .paybar .sum{font-size:16px}.paybar .sum strong{font-size:24px}
 .legal,.foot{font-size:13px}
 .adminbar nav button{font-size:16px}
+
+/* ---------- big centred title, centred upload, cancel ---------- */
+.top{position:relative;flex-direction:column;align-items:center;justify-content:center;height:auto;padding:28px 16px 8px;text-align:center;gap:6px}
+.top img{width:56px;height:56px}
+.brand{flex:none;text-align:center}
+.brand h1{font-size:clamp(32px,6vw,48px);line-height:1.1;font-weight:800;letter-spacing:-.03em;white-space:normal;overflow:visible}
+.brand p{display:block;font-size:16px;margin:6px 0 0}
+.topctl{position:absolute;top:12px;right:16px;display:flex;align-items:center;gap:8px}
+body.is-empty{min-height:100dvh}
+body.is-empty main{display:flex;flex-direction:column;justify-content:center}
+body.is-empty #screenCart{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-bottom:12vh}
+body.is-empty #emptyState{width:100%;max-width:560px;margin:0 auto}
+body.is-empty #pickError{max-width:560px;width:100%}
+.drop{padding:64px 16px}
+.cancelbtn{margin-top:8px;padding:6px 0}
+.cancelall{background:transparent;color:var(--bad);width:100%;min-height:36px}
+.cancelall:hover{background:var(--bad-soft)}
+.cancelall:disabled{opacity:.4}
+.paybar .cancelall{margin-top:4px}
+@media(max-width:600px){.topctl{top:8px;right:8px}.top{padding-top:56px}}
+.paperhint{margin-top:6px;font-weight:500;color:var(--ink)}
+.paperhint.low{color:var(--bad)}

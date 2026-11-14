@@ -11,10 +11,10 @@
 </head>
 <body>
   <header class="top">
-    <img id="logo" src="/brand-logo" alt="" width="40" height="40">
+    <img id="logo" src="/brand-logo" alt="" width="56" height="56">
     <div class="brand"><h1 id="bizName">Print</h1><p id="tagline"></p></div>
-    <button id="theme" class="iconbtn" type="button" aria-label="Switch light / dark theme"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg></button>
-    <span id="pill" class="pill" role="status" aria-live="polite">Checking…</span>
+    <div class="topctl"><button id="theme" class="iconbtn" type="button" aria-label="Switch light / dark theme"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg></button>
+    <span id="pill" class="pill" role="status" aria-live="polite">Checking…</span></div>
   </header>
 
   <main id="app">
@@ -26,6 +26,7 @@
           <strong>Tap to choose files</strong>
           <span>or drop them here</span>
           <small id="acceptHint"></small>
+          <small id="paperHint" class="paperhint" hidden></small>
         </label>
         <ol class="how"><li><b>1</b> Upload</li><li><b>2</b> Pick options</li><li><b>3</b> Pay &amp; collect</li></ol>
       </div>
@@ -42,6 +43,7 @@
         <div class="sum"><span id="sumDetail" class="muted"></span><strong id="sumTotal"></strong></div>
         <div id="optsError" class="error" role="alert" hidden></div>
         <button id="payBtn" class="btn primary" type="button">Pay &amp; print</button>
+        <button id="cancelAll" class="btn cancelall" type="button">Cancel &amp; clear all</button>
         <p class="legal">By continuing you agree to the <a href="/legal/terms" target="_blank" rel="noopener">Terms</a>, <a href="/legal/privacy" target="_blank" rel="noopener">Privacy</a> and <a href="/legal/refund" target="_blank" rel="noopener">Refund policy</a>.</p>
       </div>
     </section>
