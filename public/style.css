@@ -333,3 +333,10 @@ body.is-empty #pickError{max-width:560px;width:100%}
 @media(max-width:600px){.topctl{top:8px;right:8px}.top{padding-top:56px}}
 .paperhint{margin-top:6px;font-weight:500;color:var(--ink)}
 .paperhint.low{color:var(--bad)}
+
+/* ---------- centred card grid (upload / scan window included) ---------- */
+.vgrid{grid-template-columns:repeat(auto-fit,minmax(280px,420px));justify-content:center}
+.chipbar{justify-content:center}
+@media(max-width:600px){.vgrid{grid-template-columns:1fr}.chipbar{justify-content:flex-start}}
+.addmore{display:flex;width:fit-content;margin:24px auto 0}
+.vthumb{box-shadow:0 0 0 1px var(--line)}
