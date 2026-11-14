@@ -96,6 +96,15 @@ class JobService {
    * One order = one or more uploaded documents, each with its own options, paid with a single Razorpay order.
    * items: [{ id, copies, color, duplex, page_range }]
    */
+  /** sheets of paper one job uses (double-sided halves it) */
+  sheetsFor(pages, copies, duplex) { return Math.ceil(((pages || 1) * (copies || 1)) / (duplex ? 2 : 1)); }
+  /** Sheets still available to new orders: tray count minus paper already promised to queued/printing jobs. null = not tracked. */
+  paperLeft() {
+    const s = this.settings.all(); if (!s.paper_tracking) return null;
+    let promised = 0;
+    for (const j of this.db.prepare("SELECT pages_selected p, copies c, duplex d FROM jobs WHERE status IN ('queued','printing')").all()) promised += this.sheetsFor(j.p, j.c, j.d);
+    return Math.max(0, s.paper_in_tray - promised);
+  }
   async checkout(rawItems) {
     const s = this.settings.all();
     if (!Array.isArray(rawItems) || rawItems.length < 1) throw new UserError('Add at least one document.');
@@ -109,6 +118,11 @@ class JobService {
       seen.add(job.id);
       try { rows.push({ job, q: this.quote(job, raw) }); }
       catch (e) { if (e.userFacing) e.message = `${job.original_name}: ${e.message}`; throw e; }
+    }
+    const left = this.paperLeft();
+    if (left !== null) {
+      const need = rows.reduce((n, r) => n + this.sheetsFor(r.q.selected.length, r.q.copies, r.q.duplex), 0);
+      if (need > left) throw new UserError(left > 0 ? `Only ${left} sheet${left === 1 ? '' : 's'} of paper left in the printer, and this order needs ${need}. Please reduce pages or copies.` : 'The printer is out of paper right now. Please try again later.', 409);
     }
     // order-level minimum charge: any top-up is attributed to the first document
     let total = rows.reduce((n, r) => n + r.q.amount, 0);
@@ -279,6 +293,7 @@ class JobService {
       }
       this.setStatus(job.id, 'done');
       this.event(job.id, 'done', cupsJob);
+      if (this.settings.get('paper_tracking')) this.settings.setInternal('paper_in_tray', Math.max(0, this.settings.get('paper_in_tray') - this.sheetsFor(job.pages_selected, job.copies, job.duplex)));
       this.purgeFile(job.id, this.settings.get('retention_minutes') * MIN);
     } catch (e) {
       await this.fail(this.get(job.id), e.message);

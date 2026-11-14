@@ -32,13 +32,14 @@
     if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
     return data;
   }
-  function xhrUpload(file, onProgress) {
+  function xhrUpload(file, onProgress, hold) {
     return new Promise((resolve, reject) => {
-      const x = new XMLHttpRequest(); const fd = new FormData(); fd.append('file', file);
+      const x = new XMLHttpRequest(); if (hold) hold(x); const fd = new FormData(); fd.append('file', file);
       x.open('POST', '/api/uploads');
       x.upload.onprogress = e => e.lengthComputable && onProgress(e.loaded / e.total);
       x.onload = () => { let d = {}; try { d = JSON.parse(x.responseText); } catch {} x.status >= 200 && x.status < 300 ? resolve(d) : reject(new Error(d.error || 'Upload failed. Please try again.')); };
       x.onerror = () => reject(new Error('No connection. Check your internet and try again.'));
+      x.onabort = () => reject(Object.assign(new Error('Cancelled'), { cancelled: true }));
       x.ontimeout = () => reject(new Error('The upload timed out. Please try again.'));
       x.timeout = 180000; x.send(fd);
     });
@@ -51,7 +52,8 @@
     $('pill').textContent = cfg.ready ? 'Printer ready' : 'Unavailable'; $('pill').classList.toggle('bad', !cfg.ready);
     $('file').accept = cfg.accepts.map(e => '.' + e).join(','); $('file').disabled = !cfg.ready;
     $('drop').style.opacity = cfg.ready ? '' : '.5';
-    $('acceptHint').textContent = `${cfg.accepts.map(e => e.toUpperCase()).join(', ')} · up to ${cfg.max_file_mb} MB each · ${cfg.max_pages} pages`;
+    $('acceptHint').textContent = `${cfg.accepts.map(e => e.toUpperCase()).join(', ')} · up to ${cfg.max_file_mb} MB each`;
+    const pp = $('paperHint'); if (pp) { pp.textContent = cfg.paper_left == null ? '' : cfg.paper_left > 0 ? `${plural(cfg.paper_left, 'sheet')} of paper in the printer` : 'Printer is out of paper'; pp.classList.toggle('low', cfg.paper_left != null && cfg.paper_left < 20); show(pp, cfg.paper_left != null); }
     if (!cfg.ready && !docs.length) showPickError(cfg.payment_ready ? 'This printer is not available right now. Please try again in a few minutes.' : 'Payments are not set up on this kiosk yet.');
   }
   function showPickError(msg) { $('pickError').textContent = msg || ''; show($('pickError'), !!msg); }
@@ -127,17 +129,20 @@
     const stepped = async (n, t0) => { d.step = n; refreshDoc(d); const wait = 380 - (Date.now() - t0); if (wait > 0) await sleep(wait); };
     try {
       let t = Date.now();
-      const res = await xhrUpload(d.file, p => { d.progress = p; if (p >= 1 && d.step === 0) { d.step = 1; } refreshDoc(d); });
+      const res = await xhrUpload(d.file, p => { d.progress = p; if (p >= 1 && d.step === 0) { d.step = 1; } refreshDoc(d); }, x => { d.xhr = x; });
+      if (d.cancelled) { fetch(`/api/jobs/${res.job.id}`, { method: 'DELETE' }).catch(() => {}); return; }
       d.id = res.job.id; d.name = res.job.original_name || d.name; d.pages = res.job.pages_total; d.step = 1; refreshDoc(d);
       await stepped(2, t);                                          // "Reading pages" done
       t = Date.now();
+      if (d.cancelled) return;
       d.pdf = await openPdf(d.id);
+      if (d.cancelled) { try { d.pdf?.destroy(); } catch {} return; }
       if (d.pdf) await checkPages(d);
       await stepped(3, t);                                          // "Checking colours" done
       d.state = 'ready'; d.step = 4; 
       if (d.analysed && d.colourPages.size === 0) d.opts.color = false;
       refreshDoc(d); saveCart(); layout();
-    } catch (e) { d.state = 'error'; d.error = e.message; refreshDoc(d); }
+    } catch (e) { if (d.cancelled || e.cancelled) return; d.state = 'error'; d.error = e.message; refreshDoc(d); }
   }
   async function checkPages(d) {
     const c = document.createElement('canvas');
@@ -173,13 +178,14 @@
       h('button', { role: 'menuitem', type: 'button', class: 'danger', text: 'Remove', onclick: () => { closeMenus(); removeDoc(d); } }));
     ui.steps = h('ul', { class: 'scansteps' }, ['Uploading', 'Reading pages', 'Checking colours & blank pages'].map((t, i) => h('li', { 'data-i': i }, h('span', { class: 'tick', 'aria-hidden': 'true' }), h('span', { text: t }))));
     ui.barFill = h('i'); ui.bar = h('div', { class: 'bar' }, ui.barFill); ui.scanText = h('p', { class: 'muted small', text: '' });
+    ui.cancel = h('button', { class: 'link danger cancelbtn', type: 'button', text: 'Cancel', onclick: () => removeDoc(d) });
     ui.err = h('div', { class: 'error', role: 'alert' });
     ui.retry = h('button', { class: 'link', type: 'button', text: 'Try again', onclick: () => { d.state = 'queued'; d.progress = 0; refreshDoc(d); pump(); } });
     ui.rm = h('button', { class: 'link danger', type: 'button', text: 'Remove', onclick: () => removeDoc(d) });
     d.el = h('article', { class: 'vcard', 'data-state': 'queued' },
       ui.thumb,
       h('div', { class: 'vmeta' }, ui.avatar, h('div', { class: 'vtext' }, ui.title, ui.meta), h('div', { class: 'vright' }, ui.price, ui.menuBtn, ui.menu)),
-      h('div', { class: 'processing' }, ui.steps, ui.bar, ui.scanText), ui.err, h('div', { class: 'dfail' }, ui.retry, ui.rm));
+      h('div', { class: 'processing' }, ui.steps, ui.bar, ui.scanText, ui.cancel), ui.err, h('div', { class: 'dfail' }, ui.retry, ui.rm));
     $('cartList').append(d.el); refreshDoc(d);
   }
   const clampCopies = v => Math.max(1, Math.min(cfg.max_copies, parseInt(v, 10) || 1));
@@ -226,6 +232,7 @@
     $('sheetBody').querySelectorAll('input[name="s-duplex"]').forEach(r => { r.checked = (r.value === 'true') === d.opts.duplex; });
   }
   function removeDoc(d) {
+    d.cancelled = true; try { d.xhr?.abort(); } catch {}
     if (d.id) fetch(`/api/jobs/${d.id}`, { method: 'DELETE' }).catch(() => {});
     try { d.pdf?.destroy(); } catch {}
     if (sheetDoc === d) sheet.close();
@@ -276,6 +283,7 @@
   /* ---------- totals / layout ---------- */
   function layout() {
     const has = docs.length > 0;
+    document.body.classList.toggle('is-empty', !has);
     show($('emptyState'), !has); show($('addMore'), has && docs.length < cfg.max_docs); show($('paybar'), has);
     layoutTotals();
   }
@@ -288,7 +296,12 @@
     $('sumTotal').textContent = ready.length ? (total ? money(total) : 'Free') : '';
     const free = cfg.payment_mode === 'free' || total === 0;
     $('payBtn').textContent = pending ? 'Getting your files ready…' : failed ? 'Remove the file with the problem' : free ? 'Print now' : `Pay ${money(total)} & print`;
-    $('payBtn').disabled = busy || pending || failed || !ready.length;
+    $('cancelAll').disabled = busy;
+    const needSheets = ready.reduce((n, d) => n + Math.ceil(selSet(d).size * d.opts.copies / (d.opts.duplex ? 2 : 1)), 0);
+    const noPaper = cfg.paper_left != null && ready.length && needSheets > cfg.paper_left;
+    if (noPaper) { $('optsError').textContent = cfg.paper_left > 0 ? `Only ${plural(cfg.paper_left, 'sheet')} of paper left in the printer; this order needs ${needSheets}. Reduce pages or copies.` : 'The printer is out of paper right now. Please try again later.'; } else if ($('optsError').textContent.startsWith('Only ') || $('optsError').textContent.startsWith('The printer is out')) $('optsError').textContent = '';
+    show($('optsError'), !!$('optsError').textContent);
+    $('payBtn').disabled = noPaper || busy || pending || failed || !ready.length;
     renderBulk();
   }
 
@@ -344,7 +357,7 @@
 
   /* ---------- checkout ---------- */
   async function pay() {
-    if (busy) return; busy = true; layoutTotals(); show($('optsError'), false);
+    if (busy) return; busy = true; layoutTotals(); $('optsError').textContent = ''; show($('optsError'), false);
     const items = docs.filter(d => d.state === 'ready').map(d => ({ id: d.id, copies: d.opts.copies, color: d.opts.color, duplex: d.opts.duplex, page_range: d.opts.selected ? compact(d.opts.selected) : '' }));
     try {
       const res = await api('POST', '/api/checkout', { items });
@@ -441,7 +454,9 @@
   /* ---------- wiring ---------- */
   function wire() {
     $('file').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
+    setInterval(() => { if (!busy && document.visibilityState === 'visible') loadConfig().then(layoutTotals).catch(() => {}); }, 30000);
     $('addMore').addEventListener('click', () => $('file').click());
+    $('cancelAll').addEventListener('click', () => { if (busy) return; docs.slice().forEach(removeDoc); showPickError(''); });
     $('theme').addEventListener('click', () => { const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; const next = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = next; try { localStorage.setItem('pn_theme', next); } catch {} });
     const drop = $('drop');
     ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));

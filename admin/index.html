@@ -85,6 +85,10 @@
               <label class="check"><input type="checkbox" name="allow_color"> Allow colour</label>
               <label class="check"><input type="checkbox" name="allow_duplex"> Allow double-sided</label>
             </div>
+            <div class="two">
+              <label class="check"><input type="checkbox" name="paper_tracking"> Count paper in the printer</label>
+              <label>Sheets in tray now <input name="paper_in_tray" type="number" min="0"><small>Update this number whenever you refill. It goes down as jobs print, and orders that would run out are refused.</small></label>
+            </div>
             <label>Paper size <select name="default_paper"><option>A4</option><option>Letter</option><option>A3</option><option>Legal</option></select></label>
           </div>
           <div class="card"><h2>Payments</h2>
