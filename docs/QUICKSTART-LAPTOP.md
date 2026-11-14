@@ -6,7 +6,7 @@ This is the same app as the Raspberry Pi edition, running on a laptop that is co
 1. Install **Node.js 22 LTS** from https://nodejs.org (accept the defaults).
 2. Unzip this folder somewhere permanent, e.g. `C:\PrintNimbus`.
 3. Double-click **`start-laptop.bat`**. The first run installs components (about a minute), then opens the admin page.
-4. In the admin page, enter the **setup code** shown in the black window, choose an admin password.
+4. In the admin page, enter the **setup code** shown in the black window, choose a **username** and an admin password (you sign in with both). Existing installs: the username is `admin`.
 5. **Dashboard → Printer**: pick your printer (e.g. *HP944FDA*), press **Use this printer**, then **Print test page**.
 6. **Settings**: set your prices, business name, and (when ready) Razorpay keys. See "Payments" in `README.md`.
 

@@ -173,7 +173,7 @@ function createApp({ settings, printer, jobs, auth }) {
   admin.get('/session', (req, res) => {
     const token = parseCookie(req.headers.cookie, 'pn_admin');
     res.json({
-      setup_required: auth.needsSetup, authed: !!(token && auth.valid(token)), version: pkg.version,
+      setup_required: auth.needsSetup, identity_label: auth.identityLabel, edition: config.EDITION, authed: !!(token && auth.valid(token)), version: pkg.version,
       setup_hint: config.EDITION === 'pi'
         ? 'Find it on the device: it is printed in the install log, or in the file PRINTNIMBUS-SETUP-CODE.txt on the SD card\'s boot partition.'
         : 'Find it in the black window that opened when you started the app, or in the file data/setup-code.txt inside the app folder.',
@@ -181,22 +181,22 @@ function createApp({ settings, printer, jobs, auth }) {
   });
   admin.post('/setup', loginLimiter, (req, res) => {
     if (req.headers['x-requested-with'] !== 'printnimbus') return res.status(403).json({ error: 'Bad request origin' });
-    const r = auth.setup(req.body?.code, req.body?.password);
+    const r = auth.setup(req.body?.code, req.body?.password, req.body?.username);
     if (!r.ok) return res.status(400).json({ error: r.error });
     res.setHeader('Set-Cookie', `pn_admin=${auth.newSession()}; ${cookieOpts(req)}`);
     res.json({ ok: true });
   });
   admin.post('/login', loginLimiter, (req, res) => {
     if (req.headers['x-requested-with'] !== 'printnimbus') return res.status(403).json({ error: 'Bad request origin' });
-    const token = auth.login(req.body?.password);
-    if (!token) return res.status(401).json({ error: 'Wrong password' });
+    const token = auth.login(req.body?.username, req.body?.password);
+    if (!token) return res.status(401).json({ error: `Wrong ${auth.identityLabel.toLowerCase()} or password` });
     res.setHeader('Set-Cookie', `pn_admin=${token}; ${cookieOpts(req)}`);
     res.json({ ok: true });
   });
   admin.use(auth.middleware());
   admin.post('/logout', (req, res) => { auth.destroy(req.adminToken); res.setHeader('Set-Cookie', `pn_admin=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`); res.json({ ok: true }); });
   admin.post('/password', (req, res) => {
-    const r = auth.changePassword(req.body?.current, req.body?.next);
+    const r = auth.changePassword(req.body?.current, req.body?.next, req.body?.username);
     if (!r.ok) return res.status(400).json({ error: r.error });
     res.setHeader('Set-Cookie', `pn_admin=${auth.newSession()}; ${cookieOpts(req)}`);
     res.json({ ok: true });
@@ -253,7 +253,7 @@ function createApp({ settings, printer, jobs, auth }) {
     try { const st = await fsp.statfs(config.DATA_DIR); disk = { free_mb: Math.round(st.bavail * st.bsize / 1048576), total_mb: Math.round(st.blocks * st.bsize / 1048576) }; } catch {}
     try { temp = Number(fs.readFileSync('/sys/class/thermal/thermal_zone0/temp', 'utf8')) / 1000; } catch {}
     res.json({
-      version: pkg.version, node: process.version, uptime_s: Math.round(os.uptime()), hostname: os.hostname(),
+      version: pkg.version, node: process.version, uptime_s: Math.round(os.uptime()), hostname: os.hostname(), identity_label: auth.identityLabel, identity: auth.identity,
       mem_free_mb: Math.round(os.freemem() / 1048576), mem_total_mb: Math.round(os.totalmem() / 1048576), disk, cpu_temp_c: temp,
       print_backend: printer.name, payment_mode: settings.get('payment_mode'),
       razorpay_mode: jobs.razorpay().configured ? (jobs.razorpay().isLive ? 'live' : 'test') : 'not configured',

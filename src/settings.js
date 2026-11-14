@@ -33,6 +33,7 @@ const DEFAULTS = {
   refund_url: '',
   public_url: '',         // used for the QR poster
   admin_password_hash: '',
+  admin_username: '',     // laptop: chosen at setup. Pi: only used if the board has no serial number
 };
 
 const SECRET_KEYS = new Set(['razorpay_key_secret', 'razorpay_webhook_secret', 'admin_password_hash']);

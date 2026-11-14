@@ -7,7 +7,7 @@ runuser -u printnimbus -- env DATA_DIR=/var/lib/printnimbus /usr/bin/node --disa
 BOOT=/boot/firmware; [ -d "$BOOT" ] || BOOT=/boot
 OUT="$BOOT/PRINTNIMBUS-SETUP-CODE.txt"
 if [ -f "$CODE" ]; then
-  [ -d "$BOOT" ] && { printf 'Print Nimbus setup code: %s\nOpen http://<this-device>/admin and enter it.\n' "$(cat "$CODE")" > "$OUT"; chmod 644 "$OUT"; }
+  [ -d "$BOOT" ] && { printf 'Print Nimbus setup code: %s\nModule number (your sign-in name): %s\nOpen http://<this-device>/admin and enter them.\n' "$(cat "$CODE")" "$(cat /var/lib/printnimbus/module-number.txt 2>/dev/null)" > "$OUT"; chmod 644 "$OUT"; }
 else
   rm -f "$OUT"
 fi

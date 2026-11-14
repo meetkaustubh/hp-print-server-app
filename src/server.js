@@ -9,11 +9,12 @@ const { build } = require('./bootstrap');
 
 const { app, jobs, auth, db, settings } = build();
 const code = auth.ensureSetupCode();
+auth.publishModuleNumber();
 jobs.start();
 
 const server = app.listen(config.PORT, config.HOST, () => {
   console.log(`Print Nimbus listening on http://${config.HOST}:${config.PORT}  (printer backend: ${config.PRINT_BACKEND})`);
-  if (code) console.log(`\n  First-time setup: open /admin and enter this setup code: ${code}\n  (also saved in ${config.DATA_DIR}/setup-code.txt)\n`);
+  if (code) console.log(`\n  First-time setup: open /admin and enter this setup code: ${code}\n  (also saved in ${config.DATA_DIR}/setup-code.txt)\n  ${auth.identityLabel === 'Module number' ? `Module number (your sign-in name): ${auth.identity}` : 'Choose your username and password on that page.'}\n`);
 });
 server.requestTimeout = 120_000; server.headersTimeout = 20_000; server.keepAliveTimeout = 10_000;
 

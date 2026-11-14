@@ -20,11 +20,41 @@ function verifyPassword(pw, stored) {
   return key.length === want.length && crypto.timingSafeEqual(key, want);
 }
 
+const isPi = () => config.EDITION === 'pi';
+/** Pi units sign in with a module number derived from the board's serial, so it is stable across reinstalls and unique per unit. */
+function serialModuleNumber() {
+  try {
+    const m = /^Serial\s*:\s*([0-9a-f]+)/im.exec(fs.readFileSync('/proc/cpuinfo', 'utf8'));
+    if (!m) return null;
+    const h = crypto.createHash('sha256').update('printnimbus:' + m[1]).digest();
+    return 'PN-' + Array.from(h.subarray(0, 6), b => SETUP_ALPHABET[b % SETUP_ALPHABET.length]).join('');
+  } catch { return null; }
+}
+const USERNAME_RE = /^[A-Za-z0-9._-]{3,32}$/;
+const sameId = (a, b) => { const x = Buffer.from(String(a || '').trim().toLowerCase()), y = Buffer.from(String(b || '').trim().toLowerCase()); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+
 class Auth {
   constructor(settings) {
     this.settings = settings;
     this.sessions = new Map();
     this.codeFile = path.join(config.DATA_DIR, 'setup-code.txt');
+  }
+  /** What the admin types in the first box: module number (Pi) or username (laptop). */
+  get identityLabel() { return isPi() ? 'Module number' : 'Username'; }
+  get identity() {
+    if (isPi()) {
+      const s = serialModuleNumber();
+      if (s) return s;
+      let id = this.settings.get('admin_username');
+      if (!id) { id = 'PN-' + Array.from(crypto.randomBytes(6), b => SETUP_ALPHABET[b % SETUP_ALPHABET.length]).join(''); this.settings.setInternal('admin_username', id); }
+      return id;
+    }
+    return this.settings.get('admin_username') || 'admin';
+  }
+  /** Write the module number next to the setup code so it can be read off the SD card / printed on a label. */
+  publishModuleNumber() {
+    if (!isPi()) return;
+    try { fs.writeFileSync(path.join(config.DATA_DIR, 'module-number.txt'), this.identity + '\n', { mode: 0o644 }); } catch {}
   }
   get needsSetup() { return !this.settings.get('admin_password_hash'); }
 
@@ -34,26 +64,40 @@ class Auth {
     if (fs.existsSync(this.codeFile)) return fs.readFileSync(this.codeFile, 'utf8').trim();
     const code = Array.from(crypto.randomBytes(8), b => SETUP_ALPHABET[b % SETUP_ALPHABET.length]).join('');
     fs.writeFileSync(this.codeFile, code + '\n', { mode: 0o600 });
-    if (config.SETUP_CODE_COPY_PATH) { try { fs.writeFileSync(config.SETUP_CODE_COPY_PATH, `Print Nimbus setup code: ${code}\n`); } catch {} }
+    if (config.SETUP_CODE_COPY_PATH) { try { fs.writeFileSync(config.SETUP_CODE_COPY_PATH, `Print Nimbus setup code: ${code}\nModule number (sign-in name): ${this.identity}\n`); } catch {} }
     return code;
   }
-  setup(code, password) {
+  setup(code, password, username) {
     if (!this.needsSetup) return { ok: false, error: 'Already set up' };
     const expected = this.ensureSetupCode();
     const a = Buffer.from(String(code || '').trim().toUpperCase()), b = Buffer.from(expected);
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { ok: false, error: 'Wrong setup code' };
     if (typeof password !== 'string' || password.length < 10 || password.length > 200) return { ok: false, error: 'Password must be at least 10 characters' };
+    if (!isPi()) {
+      const u = String(username || 'admin').trim();
+      if (!USERNAME_RE.test(u)) return { ok: false, error: 'Username must be 3-32 letters, numbers, dot, dash or underscore' };
+      this.settings.setInternal('admin_username', u);
+    }
     this.settings.setInternal('admin_password_hash', hashPassword(password));
     fs.rmSync(this.codeFile, { force: true });
     if (config.SETUP_CODE_COPY_PATH) fs.rmSync(config.SETUP_CODE_COPY_PATH, { force: true });
     return { ok: true };
   }
-  login(password) {
-    if (this.needsSetup || typeof password !== 'string' || !verifyPassword(password, this.settings.get('admin_password_hash'))) return null;
+  login(identity, password) {
+    if (this.needsSetup || typeof password !== 'string') return null;
+    const passOk = verifyPassword(password, this.settings.get('admin_password_hash'));   // always checked, so timing does not reveal a valid username
+    if (!sameId(identity, this.identity) || !passOk) return null;
     return this.newSession();
   }
-  changePassword(current, next) {
+  changePassword(current, next, username) {
     if (!verifyPassword(String(current), this.settings.get('admin_password_hash'))) return { ok: false, error: 'Current password is wrong' };
+    if (username && !isPi() && !sameId(username, this.identity)) {
+      const u = String(username).trim();
+      if (!USERNAME_RE.test(u)) return { ok: false, error: 'Username must be 3-32 letters, numbers, dot, dash or underscore' };
+      this.settings.setInternal('admin_username', u);
+      if (!next) { this.sessions.clear(); return { ok: true }; }
+    }
+    if (!next && (isPi() || !username || sameId(username, this.identity))) return { ok: false, error: 'Nothing to change' };
     if (typeof next !== 'string' || next.length < 10 || next.length > 200) return { ok: false, error: 'New password must be at least 10 characters' };
     this.settings.setInternal('admin_password_hash', hashPassword(next));
     this.sessions.clear();

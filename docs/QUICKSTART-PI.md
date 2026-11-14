@@ -18,7 +18,7 @@
    sudo ./deploy/install.sh
    sudo ./deploy/add-printer.sh             # pick your printer (or pass an ipp:// URI)
    ```
-4. Open `http://printnimbus.local/admin`. Enter the **setup code** (shown by the installer, also saved as `PRINTNIMBUS-SETUP-CODE.txt` on the SD card's boot partition), choose an admin password, then **Dashboard → Printer → Use this printer → Print test page**.
+4. Open `http://printnimbus.local/admin`. Enter the **setup code** (shown by the installer, also saved as `PRINTNIMBUS-SETUP-CODE.txt` on the SD card's boot partition), choose an admin password. You then sign in with your unit's **module number** (`PN-XXXXXX`, unique per unit, shown by the installer and in `PRINTNIMBUS-SETUP-CODE.txt`) plus that password, then **Dashboard → Printer → Use this printer → Print test page**.
 
 Forgot the admin password? SSH in: `sudo -u printnimbus env DATA_DIR=/var/lib/printnimbus node /opt/printnimbus/src/cli.js reset-admin`, then `sudo systemctl restart printnimbus`.
 

@@ -41,6 +41,7 @@ Razorpay's live Checkout needs the page served over **HTTPS**, so a plain `http:
 ## 3. Selling it as a product
 
 * **One image per unit:** configure one reference Pi, run `install.sh`, then **do not** complete the admin setup. Shrink and clone the SD image (e.g. `pishrink`). Every clone boots unclaimed with its own setup code. To make it unique per unit, delete `/var/lib/printnimbus/setup-code.txt` before imaging; a fresh code is generated on first boot of each clone.
+* **Module number:** each Pi derives a unique sign-in name (`PN-XXXXXX`) from its board serial. It is saved beside the setup code, so print both on the label/insert.
 * **Print the setup code** on a sticker/insert, or tell the buyer to read `PRINTNIMBUS-SETUP-CODE.txt` from the SD card.
 * **Each buyer uses their own Razorpay account** (own KYC and settlement). The keys are entered in their admin panel; you never touch their money. If you want to collect payments centrally and split with operators, look at Razorpay Route, which is a bigger project.
 * **Branding:** drop a `logo.png` (square, ~256 px) into `/var/lib/printnimbus/` to replace the default icon; business name and tagline are in Settings. `branding/print-nimbus-logo.png` is your original logo on a teal tile, ready to use.
