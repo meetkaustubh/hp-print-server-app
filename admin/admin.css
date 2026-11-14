@@ -78,3 +78,4 @@ td .btn{display:inline-block;width:auto;min-height:34px;padding:0 12px;font-size
 @media print{.side,.topbar,.noprint,.toast{display:none!important}body{background:#fff}.card{border:0;box-shadow:none}.poster h2{font-size:2rem}}
 
 @media print{.dash{display:block}}
+a.btn{display:inline-flex;align-items:center;text-decoration:none}

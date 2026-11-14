@@ -308,13 +308,20 @@ class JobService {
   }
 
   purgeFile(id, afterMs) {
-    const t = setTimeout(() => this.dropFile(id), afterMs); t.unref?.();
+    const t = setTimeout(() => { if (!this.settings.get('retain_files')) this.dropFile(id); }, afterMs); t.unref?.();
   }
   dropFile(id) {
     const j = this.get(id);
     if (!j?.file_path) return;
     fs.rmSync(j.file_path, { force: true });
     this.db.prepare('UPDATE jobs SET file_path=NULL WHERE id=?').run(id);
+  }
+
+  /** Admin: delete every stored file for finished jobs right now. Returns how many were removed. */
+  dropAllFinished() {
+    const rows = this.db.prepare("SELECT id FROM jobs WHERE file_path IS NOT NULL AND status IN ('done','failed','refunded','refund_failed','expired')").all();
+    rows.forEach(r => this.dropFile(r.id));
+    return rows.length;
   }
 
   /** Housekeeping: expire abandoned uploads, delete old files, trim logs/temp. */
@@ -326,7 +333,9 @@ class JobService {
       if (j.status === 'uploaded') { this.dropFile(j.id); this.setStatus(j.id, 'expired'); }
       else if (this.db.prepare('SELECT created_at FROM jobs WHERE id=?').get(j.id).created_at < now - 2 * UNPAID_TTL) { this.dropFile(j.id); this.setStatus(j.id, 'expired'); }
     }
-    for (const j of this.db.prepare("SELECT id FROM jobs WHERE file_path IS NOT NULL AND status IN ('done','failed','refunded','refund_failed','expired') AND updated_at < ?").all(now - retention)) this.dropFile(j.id);
+    if (!this.settings.get('retain_files')) {
+      for (const j of this.db.prepare("SELECT id FROM jobs WHERE file_path IS NOT NULL AND status IN ('done','failed','refunded','refund_failed','expired') AND updated_at < ?").all(now - retention)) this.dropFile(j.id);
+    }
 
     // orphan files (crash between write and DB insert) + stale temp
     const referenced = new Set(this.db.prepare('SELECT file_path FROM jobs WHERE file_path IS NOT NULL').all().map(r => r.file_path));

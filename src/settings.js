@@ -26,6 +26,7 @@ const DEFAULTS = {
   razorpay_key_secret: '',
   razorpay_webhook_secret: '',
   retention_minutes: 10,  // how long files are kept after print/failure
+  retain_files: false,    // true = admin keeps printed files until deleted by hand
   notify_webhook: '',     // optional URL (ntfy.sh, Slack, Discord, Telegram relay...) called on failures
   terms_url: '',
   privacy_url: '',
@@ -59,7 +60,7 @@ const VALIDATORS = {
   payment_mode: oneOf(['free', 'razorpay']),
   razorpay_key_id: v => { v = str(80)(v); if (v && !/^rzp_(live|test)_[A-Za-z0-9]+$/.test(v)) throw new Error('should look like rzp_live_xxx or rzp_test_xxx'); return v; },
   razorpay_key_secret: str(120), razorpay_webhook_secret: str(120),
-  retention_minutes: int(1, 1440),
+  retention_minutes: int(1, 1440), retain_files: bool,
   notify_webhook: url, terms_url: url, privacy_url: url, refund_url: url, public_url: url,
 };
 

@@ -139,6 +139,9 @@
           act.append(el('button', { className: 'btn', textContent: j.status === 'refund_failed' ? 'Retry refund' : 'Refund', onclick: () => refund(j) }));
         if (j.has_file && ['failed', 'refund_failed', 'done'].includes(j.status))
           act.append(el('button', { className: 'btn', textContent: 'Reprint', onclick: () => reprint(j) }));
+        if (j.has_file && !['queued', 'printing'].includes(j.status))
+          act.append(el('a', { className: 'btn', textContent: 'Download', href: `/api/admin/jobs/${j.id}/file`, download: '' }),
+            el('button', { className: 'btn', textContent: 'Delete file', onclick: () => delFile(j) }));
         tr.append(act);
       }
       tb.append(tr);
@@ -149,6 +152,15 @@
     try { await api('POST', `/api/admin/jobs/${j.id}/refund`, {}); toast('Refund issued'); } catch (e) { toast(e.message); }
     loadJobs();
   }
+  async function delFile(j) {
+    if (!confirm('Delete the stored file for this job? You will not be able to reprint it.')) return;
+    try { await api('DELETE', `/api/admin/jobs/${j.id}/file`); toast('File deleted'); } catch (e) { toast(e.message); }
+    loadJobs();
+  }
+  $('deleteAll').addEventListener('click', async () => {
+    if (!confirm('Delete all stored files for finished jobs? This cannot be undone.')) return;
+    try { const r = await api('POST', '/api/admin/files/delete-all', {}); $('deleteAllMsg').textContent = `${r.deleted} file(s) deleted.`; } catch (e) { $('deleteAllMsg').textContent = e.message; }
+  });
   async function reprint(j) { try { await api('POST', `/api/admin/jobs/${j.id}/reprint`, {}); toast('Queued for reprint'); } catch (e) { toast(e.message); } loadJobs(); }
 
   /* ---------- settings ---------- */
