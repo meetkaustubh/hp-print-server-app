@@ -7,7 +7,7 @@ Customers scan a QR code, upload one or more documents, choose options for each,
 * **Smart checks:** while a file is processed the customer sees a scan-style progress view; the browser detects which pages contain colour and which are blank, suggests B&W when no colour is found, and offers to skip blank pages. Phone photos are rotated upright automatically.
 * Runs on a **Windows laptop** or a **Raspberry Pi Zero 2 W** (512 MB) or bigger. No build step and no native modules.
 * Prints through **CUPS** (Pi / macOS / Linux) or **SumatraPDF + the Windows spooler** (laptop).
-* Accepts **PDF, JPG, PNG** out of the box. **Word / Excel / PowerPoint / text** can be switched on (LibreOffice).
+* Accepts **PDF, JPG and PNG** only (like Blinkit). Customers save Word/Excel/PowerPoint files as PDF first. This keeps printing exact and fast, and needs no extra software.
 * **Admin panel** at `/admin`: prices, printer, Razorpay keys, jobs, refunds, QR poster, health.
 
 ## 1. Two editions, one codebase
@@ -69,7 +69,6 @@ See `SECURITY-AUDIT.md` for the full before/after. In short: no secrets in code 
 ## 6. Limits you should know
 
 * CUPS can tell when a job leaves the queue but **cannot always tell a paper jam from success**. Most printers hold the job while jammed or out of paper, so the app times out and refunds; a printer that discards the job silently would be reported as printed.
-* Office conversion on a Zero 2 W takes roughly 20–60 s per file and is limited to one at a time. Layout can differ slightly from Word; PDF is always the most faithful.
 * The Windows laptop backend (status and completion detection through PowerShell) is untested on real Windows hardware so far; the Pi/CUPS path and all payment logic are covered by tests.
 * Admin sessions are in memory: restarting the service signs the admin out (customers are unaffected).
 * Settings, including the Razorpay secret, live in a SQLite file readable only by the service user (`chmod 600`). That protects against other users and the web, not against someone with root or the SD card. Use env vars + full-disk encryption if your threat model needs more.
@@ -78,7 +77,7 @@ See `SECURITY-AUDIT.md` for the full before/after. In short: no secrets in code 
 
 * Colour and blank-page detection run in the customer's browser on small previews. They are a helpful guide, not a guarantee: a very faint tint or a tiny logo can be missed, and a page with only light-grey content can be called blank. Customers can always override.
 * Colour is chosen **per document**, not per page. Printing page 3 in colour and the rest in B&W means splitting the file into two documents (the *Print only these* shortcut helps).
-* **Colour and layout:** PDFs are printed at their original size and colours (no forced scaling; oversized pages are only shrunk to fit). Word/Excel/PowerPoint files are converted with LibreOffice, so fonts matter: the Pi installer adds Carlito/Caladea (metric-compatible with Calibri/Cambria); on a laptop, install LibreOffice and keep the fonts your documents use. For pixel-perfect Word output, upload a PDF exported from Word.
+* **Colour and layout:** PDFs are printed at their original size and colours (no forced scaling; oversized pages are only shrunk to fit).
 * There is no photo-to-scan edge detection or deskew (what a phone scanner app does). Photos are rotated using their EXIF tag and fitted to the page.
 * Previews need a modern browser (pdf.js). If it can't load, customers still print with a typed page range.
 
@@ -87,6 +86,6 @@ See `SECURITY-AUDIT.md` for the full before/after. In short: no secrets in code 
 ```bash
 npm install
 PRINT_BACKEND=dryrun npm run dev      # no printer needed; "printed" PDFs land in data/printed/
-npm test                               # 37 tests: payments, refunds, multi-doc orders, uploads, EXIF, admin security, Office conversion
+npm test                               # 37 tests: payments, refunds, multi-doc orders, uploads, EXIF, admin security
 ./scripts/build-dist.sh                # builds dist/printnimbus-laptop-<ver>.zip and dist/printnimbus-pi-<ver>.zip
 ```

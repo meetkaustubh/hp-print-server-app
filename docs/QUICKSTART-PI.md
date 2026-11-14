@@ -4,7 +4,7 @@
 
 | Item | Notes |
 |---|---|
-| Raspberry Pi Zero 2 W + 16 GB+ A1/A2 SD card | Use a good card; the app writes very little. Pi 3/4/5 also work and are faster for Office files. |
+| Raspberry Pi Zero 2 W + 16 GB+ A1/A2 SD card | Use a good card; the app writes very little. Pi 3/4/5 also work and are faster. |
 | Printer | Any CUPS-supported printer. USB (via OTG adapter) or same-Wi-Fi network printer. |
 | 5 V / 2.5 A PSU | Weak PSUs cause random Zero 2 W resets. |
 
@@ -15,7 +15,7 @@
 3. SSH in and run:
    ```bash
    cd ~/printnimbus
-   sudo ./deploy/install.sh                 # add --with-office for Word/Excel/PowerPoint support
+   sudo ./deploy/install.sh
    sudo ./deploy/add-printer.sh             # pick your printer (or pass an ipp:// URI)
    ```
 4. Open `http://printnimbus.local/admin`. Enter the **setup code** (shown by the installer, also saved as `PRINTNIMBUS-SETUP-CODE.txt` on the SD card's boot partition), choose an admin password, then **Dashboard → Printer → Use this printer → Print test page**.

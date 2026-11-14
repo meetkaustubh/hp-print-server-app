@@ -21,7 +21,6 @@ module.exports = {
   // Hard limits that settings can't exceed (protects the 512 MB Pi Zero 2 W)
   HARD_MAX_FILE_MB: 50,
   HARD_MAX_PAGES: 500,
-  SOFFICE_BIN: process.env.SOFFICE_BIN || (process.platform === 'win32' && require('node:fs').existsSync('C:\\Program Files\\LibreOffice\\program\\soffice.exe') ? 'C:\\Program Files\\LibreOffice\\program\\soffice.exe' : 'soffice'),
   // 'pi' (set by the systemd unit) or 'laptop'; only changes help text
   EDITION: process.env.PRINTNIMBUS_EDITION || 'laptop',
   SETUP_CODE_COPY_PATH: process.env.SETUP_CODE_COPY_PATH || '',
