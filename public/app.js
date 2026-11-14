@@ -72,6 +72,19 @@
     try { return await lib.getDocument({ url: `/api/jobs/${jobId}/pdf`, isEvalSupported: false, enableXfa: false, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' }).promise; }
     catch (e) { console.warn('could not open pdf for preview', e); return null; }
   }
+  /** Show the customer's own first page the moment they pick the file (before the upload finishes). */
+  async function localPreview(d) {
+    try {
+      const f = d.file, name = f.name.toLowerCase();
+      if (/\.(jpe?g|png)$/.test(name)) { d.thumb = URL.createObjectURL(f); d.localUrl = d.thumb; refreshDoc(d); return; }
+      if (!name.endsWith('.pdf')) return;
+      const lib = await getPdfjs(); if (!lib || d.cancelled) return;
+      const pdf = await lib.getDocument({ data: new Uint8Array(await f.arrayBuffer()), isEvalSupported: false, enableXfa: false, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' }).promise;
+      const c = document.createElement('canvas'); await renderPage(pdf, 1, 520, c);
+      if (!d.cancelled && !d.thumb) { d.thumb = c.toDataURL('image/jpeg', 0.8); refreshDoc(d); }
+      pdf.destroy();
+    } catch (e) { /* preview is optional; the server preview follows */ }
+  }
   async function renderPage(pdf, n, width, canvas) {
     const page = await pdf.getPage(n);
     const base = page.getViewport({ scale: 1 });
@@ -125,7 +138,7 @@
 
   /** upload -> server reads/converts -> browser checks colour + blank pages */
   async function processDoc(d) {
-    d.state = 'processing'; d.step = 0; refreshDoc(d);
+    d.state = 'processing'; d.step = 0; refreshDoc(d); localPreview(d);
     const stepped = async (n, t0) => { d.step = n; refreshDoc(d); const wait = 380 - (Date.now() - t0); if (wait > 0) await sleep(wait); };
     try {
       let t = Date.now();
@@ -235,6 +248,7 @@
     d.cancelled = true; try { d.xhr?.abort(); } catch {}
     if (d.id) fetch(`/api/jobs/${d.id}`, { method: 'DELETE' }).catch(() => {});
     try { d.pdf?.destroy(); } catch {}
+    if (d.localUrl) URL.revokeObjectURL(d.localUrl);
     if (sheetDoc === d) sheet.close();
     docs = docs.filter(x => x !== d); d.el.remove(); layout(); saveCart();
   }
