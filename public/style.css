@@ -361,3 +361,43 @@ body.is-empty #pickError{max-width:560px;width:100%}
 .paybar .cancelall:hover{background:var(--bad-soft)}
 .paybar .cancelall:disabled{opacity:.4;cursor:not-allowed}
 .paybar .legal{margin-top:14px}
+
+/* ---------- compact card: preview left, small options on the right ---------- */
+.vgrid{grid-template-columns:repeat(auto-fit,minmax(300px,640px));gap:28px 24px}
+.vcard{display:grid;grid-template-columns:minmax(150px,40%) 1fr;column-gap:16px;row-gap:10px;align-items:start}
+.vcard>.vthumb{grid-column:1;grid-row:1 / span 6;align-self:start}
+.vcard>:not(.vthumb){grid-column:2}
+.vmeta{align-items:center}
+.vmeta .avatar{width:32px;height:32px}
+.vtitle{font-size:16px;line-height:22px}
+.vsub{font-size:13px;line-height:18px}
+.opts{background:transparent;padding:0;gap:8px}
+.opts .field,.opts .orow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.opts .label{font-size:13px;font-weight:500;color:var(--muted);min-width:52px}
+.opts .stepper{background:var(--chip);border-radius:16px}
+.opts .stepper button{width:30px;height:30px;font-size:16px}
+.opts .stepper input{width:34px;height:30px;font-size:14px}
+.opts .seg{display:flex;gap:4px;flex:1;justify-content:flex-end}
+.opts .seg label{flex:0 1 auto}
+.opts .seg span{min-height:30px;padding:2px 10px;font-size:13px;border-radius:15px;background:var(--chip);flex-direction:row;gap:4px;white-space:nowrap}
+.opts .seg small{font-size:11px;opacity:.8}
+.opts .seg input:checked+span{background:var(--ink);color:var(--bg)}
+.opts .pagesbtn{min-height:30px;padding:2px 10px;font-size:13px;border-radius:15px;background:var(--chip);width:auto;flex:1;justify-content:space-between}
+.opts .chips{gap:6px;margin-top:2px}
+.opts .chip{font-size:12px;padding:5px 9px;background:var(--chip);border-radius:8px;line-height:16px}
+.opts .rmbtn{font-size:13px;padding:0}
+.vcard .processing{margin-top:0}
+.vcard .badge{font-size:11px}
+@media(max-width:700px){
+  .vgrid{grid-template-columns:1fr}
+  .vcard{grid-template-columns:110px 1fr}
+  .vcard>.vthumb{margin:0;width:100%;border-radius:10px;grid-row:1 / span 2}
+  .vcard>.opts{grid-column:1 / -1}
+  .opts .seg span{padding:2px 8px}
+}
+.vcard{grid-template-rows:repeat(5,auto) 1fr}
+.vcard>.vthumb{grid-row:1 / span 6}
+@media(max-width:700px){.vcard{grid-template-columns:128px 1fr;grid-template-rows:auto auto auto auto auto auto}.vcard>.vthumb{grid-row:1 / span 2}}
+.opts{padding:0;gap:8px}
+.opts .field{margin:0;gap:8px}
+.opts .stepper input{border:0}
