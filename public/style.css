@@ -478,3 +478,19 @@ dialog.testpay h2{margin:0 0 6px}
 dialog.testpay .btn{margin-top:10px}
 dialog.testpay .link{display:block;margin:14px auto 0}
 .tpamount{font-size:34px;font-weight:700;margin:10px 0;text-align:center}
+
+/* ---------- price breakdown ---------- */
+.breakdown{margin:10px 0 4px;border:1px solid var(--line);border-radius:14px;padding:4px 16px;background:var(--card)}
+.breakdown[hidden]{display:none}
+.breakdown summary{cursor:pointer;font-weight:600;padding:10px 0;list-style:none;display:flex;justify-content:space-between}
+.breakdown summary::after{content:"▾";color:var(--muted)}
+.breakdown:not([open]) summary::after{content:"▸"}
+.breakdown summary::-webkit-details-marker{display:none}
+.bdname{margin-top:6px;padding-top:8px;border-top:1px solid var(--line);font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bdname:first-child{border-top:0;margin-top:0}
+.bdrow{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:14px}
+.bdrow small{display:block;color:var(--muted);font-size:12px}
+.bdrow b{font-weight:600;white-space:nowrap}
+.bdnote{font-size:13px;padding:6px 0;color:var(--muted)}.bdnote.good{color:var(--ok);font-weight:600}
+.bdtotal{border-top:1px solid var(--line);margin-top:6px;padding-top:10px;font-size:16px}
+.bdtotal b{font-weight:700}

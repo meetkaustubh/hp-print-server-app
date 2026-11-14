@@ -131,6 +131,36 @@
     return Math.round(per * d.opts.copies);
   }
 
+  /** Lines that add up to docCost(d): [{ label, detail, amount }] */
+  function breakdownRows(d) {
+    const bulk = bulkNow(), pc = bulk ? cfg.bulk_price_color : cfg.price_color, pb = bulk ? cfg.bulk_price_bw : cfg.price_bw, n = selSet(d).size, c = d.opts.copies;
+    const groups = new Map(), add = (label, count, unit) => { if (!count) return; const g = groups.get(label) || { label, count: 0, unit }; g.count += count; groups.set(label, g); };
+    if (!d.opts.color) add('Black & white', n, pb);
+    else if (!perPage(d)) add('Colour', n, pc);
+    else {
+      const cs = colourSel(d), plainColour = cfg.color_billing !== 'per_page';
+      add(plainColour ? 'Colour' : 'Black & white (no colour on these pages)', n - cs.length, plainColour ? pc : pb);
+      for (const p of cs) { const m = mult(d.colourCov.get(p) || 0); add(m > 1 ? `Heavy colour, +${Math.round((m - 1) * 100)}% for ink` : 'Colour', 1, pc * m); }
+    }
+    const rows = [...groups.values()].map(g => ({ label: g.label, detail: `${plural(g.count, 'page')} × ${money(Math.round(g.unit))}${c > 1 ? ` × ${plural(c, 'copy', 'copies')}` : ''}`, amount: Math.round(g.count * g.unit * c) }));
+    const diff = docCost(d) - rows.reduce((t, r) => t + r.amount, 0); if (diff && rows.length) rows[rows.length - 1].amount += diff;   // rounding
+    return rows;
+  }
+  function renderBreakdown(ready, total, raw) {
+    const box = $('bdBody'); if (!box) return;
+    const line = (l, dtl, amt, cls = '') => h('div', { class: 'bdrow ' + cls }, h('span', {}, l, dtl ? h('small', { text: dtl }) : null), h('b', { text: amt }));
+    const kids = [];
+    for (const d of ready) {
+      kids.push(h('div', { class: 'bdname', text: d.name }));
+      for (const r of breakdownRows(d)) kids.push(line(r.label, r.detail, money(r.amount)));
+    }
+    if (bulkNow()) kids.push(h('div', { class: 'bdnote good', text: `Bulk rate applied (${plural(orderPages(), 'page')} in this order)` }));
+    if (total > raw) kids.push(line('Minimum charge top-up', `Orders under ${money(cfg.min_charge)} are charged ${money(cfg.min_charge)}`, money(total - raw)));
+    kids.push(line('Total', '', total ? money(total) : 'Free', 'bdtotal'));
+    box.replaceChildren(...kids);
+    show($('breakdown'), ready.length > 0 && !(cfg.payment_mode === 'free' && !cfg.test_mode));
+  }
+
   function addFiles(list) {
     showPickError('');
     const files = [...list]; if (!files.length) return;
@@ -303,7 +333,8 @@
   function layoutTotals() {
     if (!cfg) return;
     const ready = docs.filter(d => d.state === 'ready'), pending = docs.some(d => d.state === 'queued' || d.state === 'processing'), failed = docs.some(d => d.state === 'error');
-    let total = ready.reduce((n, d) => n + docCost(d), 0); if (total > 0) total = Math.max(total, cfg.min_charge);
+    const rawTotal = ready.reduce((n, d) => n + docCost(d), 0); let total = rawTotal; if (total > 0) total = Math.max(total, cfg.min_charge);
+    renderBreakdown(ready, total, rawTotal);
     const sheets = ready.reduce((n, d) => n + selSet(d).size * d.opts.copies, 0);
     const bh = $('bulkHint'), bulkOn = cfg.bulk_min_pages > 0;
     if (bh) {
