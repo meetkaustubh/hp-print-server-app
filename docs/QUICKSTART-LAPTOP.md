@@ -25,3 +25,7 @@ On the same Wi-Fi, customers can open `http://<laptop-ip>:3000` (the Dashboard s
 * **macOS / Linux laptops:** use `start-laptop.sh` (printing through CUPS).
 * **Data** (settings, job history, your logo override) lives in the `data` folder next to the app. Back it up; deleting it resets the kiosk.
 * **Updating:** unzip the new version over the old folder but keep your `data` folder.
+
+## Auto-update from GitHub (optional)
+
+If you installed with `git clone`, double-click `laptop\start-synced.bat` instead of `start-laptop.bat`. It runs the app and checks GitHub every minute (change with `SYNC_INTERVAL` seconds). When new code lands on `main` it pulls it, reinstalls components only if they changed, and restarts the app. Your `.env`, `data/` folder and Razorpay keys are never touched. Needs Git and Node installed. A restart takes a few seconds, so unpaid carts in progress keep working but a page open at that moment may need a refresh.
