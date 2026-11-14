@@ -340,3 +340,18 @@ body.is-empty #pickError{max-width:560px;width:100%}
 @media(max-width:600px){.vgrid{grid-template-columns:1fr}.chipbar{justify-content:flex-start}}
 .addmore{display:flex;width:fit-content;margin:24px auto 0}
 .vthumb{box-shadow:0 0 0 1px var(--line)}
+
+/* ---------- inline print options on each card ---------- */
+.opts{display:grid;gap:14px;padding:16px;border-radius:12px;background:var(--chip)}
+.opts[hidden]{display:none}
+.opts .field{display:grid;gap:8px}
+.opts .label{font-weight:600;font-size:15px}
+.opts .orow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.opts .stepper{background:var(--bg)}
+.opts .seg span{background:var(--bg);min-height:44px}
+.opts .seg input:checked+span{background:var(--ink);color:var(--bg)}
+.opts .pagesbtn{background:var(--bg)}
+.opts .chip{background:var(--bg)}
+.opts .rmbtn{justify-self:start;padding:2px 0}
+.vcard:not([data-state=ready]) .opts{display:none}
+.opts{gap:12px;padding:14px}.opts .field{gap:6px}.opts .label{line-height:20px}
