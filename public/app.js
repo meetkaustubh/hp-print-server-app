@@ -180,40 +180,32 @@
     const ui = d.ui;
     ui.img = h('img', { alt: '', hidden: true });
     ui.pagesBadge = h('span', { class: 'badge pages' }); ui.colourBadge = h('span', { class: 'badge colour', text: '🎨 Colour', hidden: true });
-    ui.thumb = h('button', { class: 'vthumb', type: 'button', 'aria-label': 'Edit print options', onclick: () => openSheet(d) },
+    ui.thumb = h('div', { class: 'vthumb' },
       ui.img, h('div', { class: 'beam', 'aria-hidden': 'true' }), h('i', { class: 'c tl' }), h('i', { class: 'c tr' }), h('i', { class: 'c bl' }), h('i', { class: 'c br' }),
-      ui.colourBadge, ui.pagesBadge, h('span', { class: 'editchip', text: 'Edit options' }));
+      ui.colourBadge, ui.pagesBadge);
     ui.avatar = h('div', { class: 'avatar', text: extOf(d), 'aria-hidden': 'true' });
     ui.title = h('h3', { class: 'vtitle' }); ui.meta = h('p', { class: 'muted vsub' }); ui.price = h('strong', { class: 'vprice' });
-    ui.menuBtn = h('button', { class: 'more', type: 'button', 'aria-label': 'More actions', 'aria-haspopup': 'menu', 'aria-expanded': 'false', text: '⋮', onclick: e => { e.stopPropagation(); toggleMenu(d); } });
-    ui.menu = h('div', { class: 'menu', role: 'menu', hidden: true },
-      h('button', { role: 'menuitem', type: 'button', text: 'Edit options', onclick: () => { closeMenus(); openSheet(d); } }),
-      h('button', { role: 'menuitem', type: 'button', class: 'danger', text: 'Remove', onclick: () => { closeMenus(); removeDoc(d); } }));
     ui.steps = h('ul', { class: 'scansteps' }, ['Uploading', 'Reading pages', 'Checking colours & blank pages'].map((t, i) => h('li', { 'data-i': i }, h('span', { class: 'tick', 'aria-hidden': 'true' }), h('span', { text: t }))));
     ui.barFill = h('i'); ui.bar = h('div', { class: 'bar' }, ui.barFill); ui.scanText = h('p', { class: 'muted small', text: '' });
     ui.cancel = h('button', { class: 'link danger cancelbtn', type: 'button', text: 'Cancel', onclick: () => removeDoc(d) });
+    ui.opts = h('div', { class: 'opts', hidden: true });
     ui.err = h('div', { class: 'error', role: 'alert' });
     ui.retry = h('button', { class: 'link', type: 'button', text: 'Try again', onclick: () => { d.state = 'queued'; d.progress = 0; refreshDoc(d); pump(); } });
     ui.rm = h('button', { class: 'link danger', type: 'button', text: 'Remove', onclick: () => removeDoc(d) });
     d.el = h('article', { class: 'vcard', 'data-state': 'queued' },
       ui.thumb,
-      h('div', { class: 'vmeta' }, ui.avatar, h('div', { class: 'vtext' }, ui.title, ui.meta), h('div', { class: 'vright' }, ui.price, ui.menuBtn, ui.menu)),
+      h('div', { class: 'vmeta' }, ui.avatar, h('div', { class: 'vtext' }, ui.title, ui.meta), h('div', { class: 'vright' }, ui.price)),
+      ui.opts,
       h('div', { class: 'processing' }, ui.steps, ui.bar, ui.scanText, ui.cancel), ui.err, h('div', { class: 'dfail' }, ui.retry, ui.rm));
     $('cartList').append(d.el); refreshDoc(d);
   }
   const clampCopies = v => Math.max(1, Math.min(cfg.max_copies, parseInt(v, 10) || 1));
-  function toggleMenu(d) { const open = d.ui.menu.hidden; closeMenus(); if (open) { show(d.ui.menu, true); d.ui.menuBtn.setAttribute('aria-expanded', 'true'); d.ui.menu.querySelector('button').focus(); } }
-  function closeMenus() { docs.forEach(x => { if (x.ui.menu) { show(x.ui.menu, true === false); x.ui.menuBtn.setAttribute('aria-expanded', 'false'); } }); }
-  document.addEventListener('click', closeMenus);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
-
   function refreshDoc(d) {
     const ui = d.ui; if (!ui.title) return;
     const ready = d.state === 'ready'; d.el.dataset.state = d.state;
     ui.title.textContent = d.name; ui.title.title = d.name;
     if (d.thumb && ui.img.hidden) { ui.img.src = d.thumb; ui.img.hidden = false; }
     ui.thumb.classList.toggle('scanning', d.state === 'processing' || d.state === 'queued'); ui.thumb.classList.toggle('done', ready);
-    ui.thumb.disabled = !ready;
     ui.steps.querySelectorAll('li').forEach((li, i) => { li.classList.toggle('on', d.step === i && d.state === 'processing'); li.classList.toggle('ok', d.step > i); });
     ui.barFill.style.width = `${d.step === 0 ? Math.round(d.progress * 100) : 100}%`; ui.bar.classList.toggle('indet', d.step === 1 || d.step === 2);
     if (d.state === 'queued') ui.meta.textContent = 'Waiting…';
@@ -223,9 +215,9 @@
     show(ui.pagesBadge, ready); show(ui.colourBadge, ready && d.opts.color);
     ui.err.textContent = d.error; show(ui.err, d.state === 'error');
     ui.price.textContent = ready ? (docCost(d) ? money(docCost(d)) : 'Free') : '';
-    show(ui.menuBtn, ready);
     layoutTotals();
-    if (sheetDoc === d) updateSheet();
+    if (ready) { if (!ui.optsBuilt) buildOpts(d); updateOpts(d); }
+    show(ui.opts, ready);
   }
   function insights(d) {
     const out = [], sel = selSet(d);
@@ -240,49 +232,40 @@
     return out;
   }
   function syncRadios(d) {
-    if (sheetDoc !== d) return;
-    $('sheetBody').querySelectorAll('input[name="s-color"]').forEach(r => { r.checked = (r.value === 'true') === d.opts.color; });
-    $('sheetBody').querySelectorAll('input[name="s-duplex"]').forEach(r => { r.checked = (r.value === 'true') === d.opts.duplex; });
+    const r = d.ui.opts; if (!r) return;
+    r.querySelectorAll('input[data-f="color"]').forEach(x => { x.checked = (x.value === 'true') === d.opts.color; });
+    r.querySelectorAll('input[data-f="duplex"]').forEach(x => { x.checked = (x.value === 'true') === d.opts.duplex; });
   }
   function removeDoc(d) {
     d.cancelled = true; try { d.xhr?.abort(); } catch {}
     if (d.id) fetch(`/api/jobs/${d.id}`, { method: 'DELETE' }).catch(() => {});
     try { d.pdf?.destroy(); } catch {}
     if (d.localUrl) URL.revokeObjectURL(d.localUrl);
-    if (sheetDoc === d) sheet.close();
     docs = docs.filter(x => x !== d); d.el.remove(); layout(); saveCart();
   }
 
-  /* ---------- per-document options sheet ---------- */
-  const sheet = $('sheet'); let sheetDoc = null, sheetRefs = {};
-  function openSheet(d) {
-    if (d.state !== 'ready') return;
-    sheetDoc = d; const r = sheetRefs = {};
-    $('sheetSub').textContent = d.name;
-    const seg = (field, a, b) => h('div', { class: 'seg' }, [[a, false], [b, true]].map(([t, v]) => h('label', {}, h('input', { type: 'radio', name: `s-${field}`, value: String(v), checked: d.opts[field] === v, onchange: () => { d.opts[field] = v; refreshDoc(d); saveCart(); } }), h('span', {}, t[0], t[1] ? h('small', { text: t[1] }) : null))));
+  /* ---------- per-document options (always visible once the scan is done) ---------- */
+  function buildOpts(d) {
+    const ui = d.ui, r = ui.o = {}; ui.optsBuilt = true;
+    const seg = (field, a, b) => h('div', { class: 'seg' }, [[a, false], [b, true]].map(([t, v]) => h('label', {}, h('input', { type: 'radio', 'data-f': field, name: `o${d.key}-${field}`, value: String(v), checked: d.opts[field] === v, onchange: () => { d.opts[field] = v; refreshDoc(d); saveCart(); } }), h('span', {}, t[0], t[1] ? h('small', { text: t[1] }) : null))));
     r.copies = h('input', { type: 'number', inputmode: 'numeric', min: 1, value: d.opts.copies, 'aria-label': 'Copies', oninput: () => { d.opts.copies = clampCopies(r.copies.value); refreshDoc(d); saveCart(); } });
     const setCopies = n => { d.opts.copies = clampCopies(n); r.copies.value = d.opts.copies; refreshDoc(d); saveCart(); };
     r.pagesBtn = h('button', { class: 'pagesbtn', type: 'button', onclick: () => openPicker(d) });
     r.chips = h('div', { class: 'chips' });
-    $('sheetBody').replaceChildren(
-      h('div', { class: 'field' }, h('span', { class: 'label', text: 'Copies' }), h('div', { class: 'stepper' }, h('button', { type: 'button', 'aria-label': 'Fewer copies', text: '−', onclick: () => setCopies(d.opts.copies - 1) }), r.copies, h('button', { type: 'button', 'aria-label': 'More copies', text: '+', onclick: () => setCopies(d.opts.copies + 1) }))),
+    ui.opts.replaceChildren(
+      h('div', { class: 'orow' }, h('span', { class: 'label', text: 'Copies' }), h('div', { class: 'stepper' }, h('button', { type: 'button', 'aria-label': 'Fewer copies', text: '−', onclick: () => setCopies(d.opts.copies - 1) }), r.copies, h('button', { type: 'button', 'aria-label': 'More copies', text: '+', onclick: () => setCopies(d.opts.copies + 1) }))),
       cfg.allow_color ? h('div', { class: 'field' }, h('span', { class: 'label', text: 'Colour' }), seg('color', ['Black & white', '₹' + (cfg.price_bw / 100) + '/page'], ['Colour', '₹' + (cfg.price_color / 100) + '/page'])) : null,
       cfg.allow_duplex ? h('div', { class: 'field' }, h('span', { class: 'label', text: 'Sides' }), seg('duplex', ['Single-sided'], ['Double-sided'])) : null,
       h('div', { class: 'field' }, h('span', { class: 'label', text: 'Pages' }), r.pagesBtn),
       r.chips,
       h('button', { class: 'link danger rmbtn', type: 'button', text: 'Remove this file', onclick: () => removeDoc(d) }));
-    updateSheet(); sheet.showModal();
   }
-  function updateSheet() {
-    const d = sheetDoc; if (!d) return; const r = sheetRefs, n = selSet(d).size;
+  function updateOpts(d) {
+    const r = d.ui.o; if (!r) return; const n = selSet(d).size;
+    if (document.activeElement !== r.copies) r.copies.value = d.opts.copies;
     r.pagesBtn.replaceChildren(h('span', { text: d.opts.selected ? `${plural(n, 'page')} of ${d.pages}: ${compact(d.opts.selected).slice(0, 28)}` : `All ${plural(d.pages, 'page')}` }), h('span', { class: 'chev', text: d.pdf ? 'Choose pages ›' : 'Change ›' }));
     r.chips.replaceChildren(...insights(d));
-    $('sheetDetail').textContent = `${plural(n * d.opts.copies, 'page')} to print`; $('sheetPrice').textContent = docCost(d) ? money(docCost(d)) : 'Free';
   }
-  $('sheetDone').addEventListener('click', () => sheet.close());
-  $('sheetClose').addEventListener('click', () => sheet.close());
-  sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });
-  sheet.addEventListener('close', () => { sheetDoc = null; });
 
   /* ---------- "apply to all" chip bar ---------- */
   function renderBulk() {
