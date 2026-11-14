@@ -33,7 +33,9 @@
       <nav id="tabs" role="tablist" aria-label="Admin sections">
         <button role="tab" data-tab="dash" aria-selected="true"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 13h6V4H4v9zm0 7h6v-4H4v4zm10 0h6v-9h-6v9zm0-16v4h6V4h-6z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Dashboard</span></button>
         <button role="tab" data-tab="jobs"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Jobs</span></button>
+        <button role="tab" data-tab="print"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Print (free)</span></button>
         <button role="tab" data-tab="settings"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2-1.2L14.600 3h-4l-.4 2.6a7.600 7.600 0 0 0-2 1.200l-2.300-.9-2 3.400 2 1.500a7.400 7.400 0 0 0 0 2.400l-2 1.500 2 3.400 2.300-.9c.600.500 1.300.900 2 1.200l.400 2.600h4l.4-2.600c.700-.300 1.400-.700 2-1.200l2.300.900 2-3.400-2-1.500c.1-.400.1-.800.1-1.200z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Settings</span></button>
+        <button role="tab" data-tab="test"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 3h6M10 3v6L4.500 19a1.500 1.500 0 0 0 1.300 2.300h12.400a1.500 1.500 0 0 0 1.300-2.300L14 9V3M7.500 15h9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Test lab</span></button>
         <button role="tab" data-tab="poster"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>QR poster</span></button>
       </nav>
       <div class="sidefoot">
@@ -73,6 +75,46 @@
           <p id="jobsEmpty" class="muted pad" hidden>No jobs yet.</p></div>
       </section>
 
+      <section id="tab-print" class="tab" hidden>
+        <form id="adminPrintForm" class="card stack narrow">
+          <h2>Print a file for free</h2>
+          <p class="muted">For your own printing and for checking the printer. Nothing is charged and it does not count as revenue.</p>
+          <label>File (PDF, JPG or PNG) <input id="apFile" type="file" accept=".pdf,.jpg,.jpeg,.png" required></label>
+          <div class="two">
+            <label>Copies <input id="apCopies" type="number" min="1" value="1"></label>
+            <label>Colour <select id="apColor"><option value="false">Black &amp; white</option><option value="true">Colour</option></select></label>
+          </div>
+          <div class="two">
+            <label>Sides <select id="apDuplex"><option value="false">Single-sided</option><option value="true">Double-sided</option></select></label>
+            <label>Pages <input id="apRange" placeholder="All pages, or e.g. 1-3,5"></label>
+          </div>
+          <div id="apMsg" class="small" hidden></div>
+          <button class="btn primary" type="submit" id="apBtn">Print now</button>
+        </form>
+      </section>
+
+      <section id="tab-test" class="tab" hidden>
+        <div class="card narrow">
+          <h2>Test lab</h2>
+          <p class="muted">Try the whole customer journey without real money, and force things to go wrong to check refunds and alerts. Test payments never count as revenue and never reach Razorpay.</p>
+          <label class="check"><input type="checkbox" id="tmOn"> Test mode is on</label>
+          <div id="tmOptions">
+            <label>When a customer's print is submitted
+              <select id="tmPrint"><option value="success">Pretend it printed successfully</option><option value="fail">Pretend the printer failed</option><option value="real">Use the real printer</option></select></label>
+            <label>When a refund is attempted
+              <select id="tmRefund"><option value="success">Refund works</option><option value="fail">Refund fails</option></select></label>
+            <div class="note">The payment outcome is chosen by you on the test payment window: <b>Pay successfully</b> or <b>Decline the payment</b>.</div>
+            <p><a class="btn" href="/" target="_blank" rel="noopener">Open the customer page</a></p>
+          </div>
+          <div id="tmMsg" class="small" hidden></div>
+          <ol class="small muted tmsteps">
+            <li>Switch test mode on, then open the customer page (a yellow bar shows it is in test mode).</li>
+            <li>Upload a file and press Pay. Choose success or decline in the test window.</li>
+            <li>Set the print outcome to “printer failed” to see the automatic refund. Set the refund to “fails” as well to see the failed-refund alert and the Retry refund button in Jobs.</li>
+          </ol>
+        </div>
+      </section>
+
       <section id="tab-settings" class="tab" hidden>
         <form id="settingsForm" class="stack">
           <div class="cards2">
@@ -103,6 +145,19 @@
               <label>Sheets in tray now <input name="paper_in_tray" type="number" min="0"><small>Update this number whenever you refill. It goes down as jobs print, and orders that would run out are refused.</small></label>
             </div>
             <label>Paper size <select name="default_paper"><option>A4</option><option>Letter</option><option>A3</option><option>Legal</option></select></label>
+          </div>
+          <div class="card"><h2>Colour &amp; bulk pricing</h2>
+            <label>How colour pages are charged
+              <select name="color_billing"><option value="all">Every page at the colour price when colour is chosen</option><option value="per_page">Only pages that really contain colour at the colour price, the rest at the B&amp;W price</option></select></label>
+            <label>Colour detection level
+              <select name="color_sensitivity"><option value="high">High: any visible colour makes a page a colour page</option><option value="medium">Medium: a page needs some colour (about 0.4% of it)</option><option value="low">Low: only clearly coloured pages (about 2.5% of the page or more)</option></select>
+              <small class="muted">Lower levels let pages with just a small logo or link colour be charged as black &amp; white.</small></label>
+            <label>Bulk rate starts at (pages in one order, 0 = off) <input name="bulk_min_pages" type="number" min="0"></label>
+            <div class="two">
+              <label>Bulk B&amp;W, per page (₹) <input name="bulk_price_bw" type="number" step="0.25" min="0"></label>
+              <label>Bulk colour, per page (₹) <input name="bulk_price_color" type="number" step="0.25" min="0"></label>
+            </div>
+            <small class="muted">Pages × copies across all documents in one order. Leave a bulk price at 0 to keep the normal price for it.</small>
           </div>
           <div class="card"><h2>Payments</h2>
             <label>Mode

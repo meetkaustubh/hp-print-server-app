@@ -1,10 +1,20 @@
 'use strict';
 // Server-side price calculation. The browser never decides what a job costs.
-function computePrice(s, { pages, copies, color }) {
-  const unit = color ? s.price_color : s.price_bw;
-  const raw = pages * copies * unit;
+function rates(s, bulk) {
+  return { bw: bulk ? (s.bulk_price_bw || s.price_bw) : s.price_bw, color: bulk ? (s.bulk_price_color || s.price_color) : s.price_color };
+}
+/** colourPages = how many of the selected pages contain colour (only used when colour billing is per page). */
+function computePrice(s, { pages, copies, color, colourPages = null, bulk = false }) {
+  const r = rates(s, bulk);
+  let per;
+  if (!color) per = pages * r.bw;
+  else if (s.color_billing === 'per_page' && colourPages != null) per = colourPages * r.color + (pages - colourPages) * r.bw;
+  else per = pages * r.color;
+  const raw = per * copies;
   return Math.max(raw, raw > 0 ? s.min_charge : 0);
 }
+/** Bulk rates apply when the whole order is big enough. */
+const isBulk = (s, totalPages) => s.bulk_min_pages > 0 && totalPages >= s.bulk_min_pages;
 
 /** "1-3,5,8-9" -> sorted unique page numbers within [1,total]. Returns null if invalid. */
 function parsePageRange(input, total) {
@@ -34,4 +44,4 @@ function compactRange(pages) {
   return out.join(',');
 }
 
-module.exports = { computePrice, parsePageRange, compactRange };
+module.exports = { isBulk, computePrice, parsePageRange, compactRange };

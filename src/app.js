@@ -80,9 +80,9 @@ function createApp({ settings, printer, jobs, auth }) {
   }
 
   app.get('/api/config', async (req, res) => {
-    const st = await printerStatus();
+    const st = jobs.simulatesPrint() ? { ready: true, state: 'idle' } : await printerStatus();
     const s = settings.all();
-    const payOk = s.payment_mode === 'free' || jobs.razorpay().configured;
+    const payOk = s.payment_mode === 'free' || s.test_mode || jobs.razorpay().configured;
     res.json({ ...settings.publicView(), ready: st.ready && payOk, printer_state: st.state, payment_ready: payOk, paper_left: jobs.paperLeft() });
   });
 
@@ -103,7 +103,7 @@ function createApp({ settings, printer, jobs, auth }) {
     const tmp = req.file?.path;
     try {
       if (!tmp) throw new UserError('No file received.');
-      const st = await printerStatus();
+      const st = jobs.simulatesPrint() ? { ready: true } : await printerStatus();
       if (!st.ready) throw new UserError('This printer is not available right now. Please try again later.', 503);
       const { pdfPath, pages } = await normalise({ tmpPath: tmp, originalName: req.file.originalname, settings });
       const job = jobs.createUpload({ pdfPath, pages, originalName: Buffer.from(req.file.originalname, 'latin1').toString('utf8') });
@@ -114,6 +114,10 @@ function createApp({ settings, printer, jobs, auth }) {
 
   app.post('/api/checkout', limiter(10, 40), async (req, res, next) => {
     try { res.json(await jobs.checkout(req.body?.items)); } catch (e) { next(e); }
+  });
+
+  app.post('/api/checkout/test-pay', limiter(10, 60), async (req, res, next) => {
+    try { res.json(await jobs.testPay(req.body?.batch_id, req.body?.outcome)); } catch (e) { next(e); }
   });
 
   app.post('/api/checkout/confirm', limiter(10, 60), async (req, res, next) => {
@@ -244,6 +248,9 @@ function createApp({ settings, printer, jobs, auth }) {
     res.download(j.file_path, (j.original_name || 'document').replace(/\.[^.]*$/, '') + '.pdf');
   });
   admin.post('/files/delete-all', (req, res) => res.json({ deleted: jobs.dropAllFinished() }));
+  admin.post('/print', (req, res, next) => {
+    try { res.json({ job: jobs.adminPrint(req.body?.id, req.body || {}) }); } catch (e) { next(e); }
+  });
   admin.get('/qr.svg', async (req, res) => {
     const url = settings.get('public_url') || `${req.protocol}://${req.get('host')}`;
     res.type('image/svg+xml').send(await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' }));

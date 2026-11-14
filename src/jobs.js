@@ -4,7 +4,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const config = require('./config');
-const { computePrice, parsePageRange, compactRange } = require('./pricing');
+const { computePrice, isBulk, parsePageRange, compactRange } = require('./pricing');
 const { UserError, PAPER } = require('./files');
 const { Razorpay } = require('./payments/razorpay');
 const { notify } = require('./notify');
@@ -59,6 +59,9 @@ class JobService {
     };
   }
 
+  /** Test mode with a simulated printer: the real printer is not touched. */
+  simulatesPrint() { const s = this.settings.all(); return !!s.test_mode && s.test_print_outcome !== 'real'; }
+
   /* ---------- customer flow ---------- */
   createUpload({ pdfPath, pages, originalName }) {
     const s = this.settings.all();
@@ -75,21 +78,27 @@ class JobService {
   }
 
   /** Validate + price options. Throws UserError on anything odd. */
-  quote(job, raw) {
+  quote(job, raw, { admin = false } = {}) {
     const s = this.settings.all();
     const copies = Number(raw.copies);
     if (!Number.isInteger(copies) || copies < 1 || copies > s.max_copies) throw new UserError(`Copies must be between 1 and ${s.max_copies}.`);
     const color = raw.color === true || raw.color === 'true';
     const duplex = raw.duplex === true || raw.duplex === 'true';
-    if (color && !s.allow_color) throw new UserError('Colour printing is not available on this printer.');
-    if (duplex && !s.allow_duplex) throw new UserError('Double-sided printing is not available on this printer.');
+    if (color && !s.allow_color && !admin) throw new UserError('Colour printing is not available on this printer.');
+    if (duplex && !s.allow_duplex && !admin) throw new UserError('Double-sided printing is not available on this printer.');
     const paper = raw.paper || s.default_paper;
     if (!PAPER[paper]) throw new UserError('Unknown paper size.');
     const range = typeof raw.page_range === 'string' ? raw.page_range.trim() : '';
     const selected = parsePageRange(range, job.pages_total);
     if (!selected) throw new UserError(`Page range is not valid. Use something like 1-3,5 (this document has ${job.pages_total} pages).`);
-    const amount = computePrice(s, { pages: selected.length, copies, color });
-    return { copies, color, duplex, paper, selected, page_range: range ? compactRange(selected) : '', amount };
+    // how many selected pages contain colour (reported by the browser; only matters for per-page colour billing)
+    let colourPages = null;
+    if (color && s.color_billing === 'per_page' && Array.isArray(raw.colour_pages)) {
+      const sel = new Set(selected);
+      colourPages = new Set(raw.colour_pages.map(Number).filter(p => Number.isInteger(p) && sel.has(p))).size;
+    }
+    const amount = computePrice(s, { pages: selected.length, copies, color, colourPages });
+    return { copies, color, duplex, paper, selected, page_range: range ? compactRange(selected) : '', amount, colourPages };
   }
 
   /**
@@ -124,14 +133,20 @@ class JobService {
       const need = rows.reduce((n, r) => n + this.sheetsFor(r.q.selected.length, r.q.copies, r.q.duplex), 0);
       if (need > left) throw new UserError(left > 0 ? `Only ${left} sheet${left === 1 ? '' : 's'} of paper left in the printer, and this order needs ${need}. Please reduce pages or copies.` : 'The printer is out of paper right now. Please try again later.', 409);
     }
+    // bulk rate: decided on the whole order, then every document is re-priced with it
+    const orderPages = rows.reduce((n, r) => n + r.q.selected.length * r.q.copies, 0);
+    if (isBulk(s, orderPages)) for (const r of rows) r.q.amount = computePrice(s, { pages: r.q.selected.length, copies: r.q.copies, color: r.q.color, colourPages: r.q.colourPages, bulk: true });
     // order-level minimum charge: any top-up is attributed to the first document
     let total = rows.reduce((n, r) => n + r.q.amount, 0);
     if (total > 0 && total < s.min_charge) { rows[0].q.amount += s.min_charge - total; total = s.min_charge; }
 
     const batchId = crypto.randomBytes(16).toString('hex');
-    const free = s.payment_mode === 'free' || total === 0;
+    const test = !!s.test_mode;
+    const free = (s.payment_mode === 'free' && !test) || total === 0;
     let order = null;
-    if (!free) {
+    if (!free && test) {
+      order = { id: 'order_test_' + crypto.randomBytes(8).toString('hex'), amount: total, currency: s.currency };
+    } else if (!free) {
       const rz = this.razorpay();
       if (!rz.configured) throw new UserError('Online payment is not set up on this kiosk yet.', 503);
       try { order = await rz.createOrder({ amount: total, currency: s.currency, receipt: batchId, notes: { batch: batchId } }); }
@@ -152,7 +167,7 @@ class JobService {
       return { batch: this.batchView(batchId) };
     }
     for (const { job } of rows) { this.setStatus(job.id, 'awaiting_payment'); this.event(job.id, 'order_created', `${order.id} total ${total}`); }
-    return { batch: this.batchView(batchId), order: { id: order.id, amount: order.amount, currency: order.currency, key_id: s.razorpay_key_id } };
+    return { batch: this.batchView(batchId), order: { id: order.id, amount: order.amount, currency: order.currency, key_id: s.razorpay_key_id, test } };
   }
 
   /** Called from the browser handler (signature already checked) and from the webhook (HMAC already checked). */
@@ -183,12 +198,35 @@ class JobService {
     return { ok: true, batch_id: jobs[0].batch_id };
   }
 
+  /** Test mode only: act out the payment window. outcome = 'success' | 'fail' */
+  async testPay(batchId, outcome) {
+    if (!this.settings.get('test_mode')) throw new UserError('Test mode is off.', 403);
+    const ord = this.db.prepare('SELECT * FROM orders WHERE batch_id=? AND id LIKE ?').get(batchId, 'order_test_%');
+    if (!ord) throw new UserError('No test order found.', 404);
+    if (outcome !== 'success') { this.event(null, 'test_payment_failed', ord.id); return { ok: false, error: 'Test payment declined. You have not been charged.' }; }
+    const r = await this.confirmPayment({ orderId: ord.id, paymentId: 'pay_test_' + crypto.randomBytes(8).toString('hex'), source: 'test' });
+    return { ok: r.ok, batch: this.batchView(batchId) };
+  }
+
+  /** Admin: print a file for free (no order, no payment). */
+  adminPrint(id, raw) {
+    const job = this.get(id);
+    if (!job || job.status !== 'uploaded' || !job.file_path || !fs.existsSync(job.file_path)) throw new UserError('That upload is no longer available. Choose the file again.', 404);
+    const q = this.quote(job, raw, { admin: true });
+    const now = Date.now();
+    this.db.prepare(`UPDATE jobs SET batch_id=?, pages_selected=?, page_range=?, copies=?, color=?, duplex=?, paper=?, amount=0, source='admin', updated_at=? WHERE id=?`)
+      .run(crypto.randomBytes(16).toString('hex'), q.selected.length, q.page_range, q.copies, q.color ? 1 : 0, q.duplex ? 1 : 0, q.paper, now, id);
+    this.setStatus(id, 'queued', { queued_at: now }); this.event(id, 'admin_print', 'free');
+    this.kick();
+    return this.toPublic(this.get(id));
+  }
+
   async refundStaleOrder(ord, paymentId, source) {
     const claim = this.db.prepare("UPDATE orders SET status='stale_refunding' WHERE id=? AND status IN ('paid','stale_refund_failed')").run(ord.id);
     if (!claim.changes) return { ok: true, duplicate: true };
     this.event(null, 'stale_order_paid', `${ord.id} ${paymentId} via ${source}`);
     try {
-      await this.razorpay().refund({ paymentId, amount: ord.amount, receipt: ord.id, notes: { reason: 'cart changed before payment' } });
+      if (!String(paymentId).startsWith('pay_test_')) await this.razorpay().refund({ paymentId, amount: ord.amount, receipt: ord.id, notes: { reason: 'cart changed before payment' } });
       this.db.prepare("UPDATE orders SET status='stale_refunded' WHERE id=?").run(ord.id);
     } catch (e) {
       this.db.prepare("UPDATE orders SET status='stale_refund_failed' WHERE id=?").run(ord.id);
@@ -223,7 +261,11 @@ class JobService {
     const claim = this.db.prepare("UPDATE jobs SET status='refunding', updated_at=? WHERE id=? AND refund_id IS NULL AND status IN ('failed','refund_failed','done','expired','queued','awaiting_payment')").run(Date.now(), id);
     if (!claim.changes) return { ok: false, error: 'Job is not refundable in its current state' };
     try {
-      const res = await this.razorpay().refund({ paymentId: job.payment_id, amount: job.amount, receipt: id, notes: { reason: String(reason).slice(0, 100) } });
+      let res;
+      if (String(job.payment_id).startsWith('pay_test_')) {   // simulated payment: never talk to Razorpay
+        if (this.settings.get('test_refund_outcome') === 'fail') throw new Error('Simulated refund failure (test mode)');
+        res = { id: 'rfnd_test_' + crypto.randomBytes(5).toString('hex') };
+      } else res = await this.razorpay().refund({ paymentId: job.payment_id, amount: job.amount, receipt: id, notes: { reason: String(reason).slice(0, 100) } });
       this.setStatus(id, 'refunded', { refund_id: res.id });
       this.event(id, 'refunded', `${res.id} (${reason})`);
       return { ok: true, refund_id: res.id };
@@ -266,7 +308,7 @@ class JobService {
         const job = this.db.prepare("SELECT * FROM jobs WHERE status='queued' ORDER BY queued_at ASC, rowid ASC LIMIT 1").get();
         if (!job) return;
         const printerName = this.settings.get('printer_name');
-        const st = await this.printer.status(printerName);
+        const st = this.simulatesPrint() ? { ready: true } : await this.printer.status(printerName);
         if (!st.ready) {
           if (Date.now() - (job.queued_at || job.updated_at) > PRINTER_WAIT_MS) { await this.fail(job, `Printer not ready: ${st.detail}`); continue; }
           return; // leave queued, try again on the next tick
@@ -281,6 +323,13 @@ class JobService {
     if (!claim.changes) return;
     this.event(job.id, 'printing');
     try {
+      if (this.simulatesPrint()) {
+        await new Promise(r => setTimeout(r, 2500));   // long enough to watch the "Printing" screen
+        if (this.settings.get('test_print_outcome') === 'fail') throw new Error('Simulated print failure (test mode)');
+        this.setStatus(job.id, 'done'); this.event(job.id, 'done', 'simulated (test mode)');
+        this.purgeFile(job.id, this.settings.get('retention_minutes') * MIN);
+        return;
+      }
       const cupsJob = await this.printer.submit({
         printer: printerName, file: job.file_path, copies: job.copies, color: !!job.color, duplex: !!job.duplex,
         paper: job.paper, pages: job.page_range || '', title: `PrintNimbus ${job.id.slice(0, 8)}`,
@@ -357,7 +406,7 @@ class JobService {
     const rows = status
       ? this.db.prepare('SELECT * FROM jobs WHERE status=? ORDER BY created_at DESC LIMIT ?').all(status, limit)
       : this.db.prepare("SELECT * FROM jobs WHERE status != 'uploaded' ORDER BY created_at DESC LIMIT ?").all(limit);
-    return rows.map(j => ({ ...this.toPublic(j), created_at: j.created_at, payment_id: j.payment_id, refund_id: j.refund_id, error: j.error, order_id: j.order_id, batch_id: j.batch_id, has_file: !!j.file_path }));
+    return rows.map(j => ({ ...this.toPublic(j), created_at: j.created_at, source: j.source || '', test: String(j.payment_id || '').startsWith('pay_test_'), payment_id: j.payment_id, refund_id: j.refund_id, error: j.error, order_id: j.order_id, batch_id: j.batch_id, has_file: !!j.file_path }));
   }
   stats() {
     const day = new Date(); day.setHours(0, 0, 0, 0);
@@ -365,8 +414,8 @@ class JobService {
     return {
       today_jobs: q("SELECT COUNT(*) n FROM jobs WHERE status='done' AND updated_at >= ?", day.getTime()).n,
       today_pages: q("SELECT COALESCE(SUM(pages_selected*copies),0) n FROM jobs WHERE status='done' AND updated_at >= ?", day.getTime()).n,
-      today_revenue: q(`SELECT COALESCE(SUM(amount),0) n FROM jobs WHERE payment_id IS NOT NULL AND status IN ('done') AND updated_at >= ?`, day.getTime()).n,
-      total_revenue: q(`SELECT COALESCE(SUM(amount),0) n FROM jobs WHERE payment_id IS NOT NULL AND status='done'`).n,
+      today_revenue: q(`SELECT COALESCE(SUM(amount),0) n FROM jobs WHERE payment_id IS NOT NULL AND payment_id NOT LIKE 'pay_test_%' AND status IN ('done') AND updated_at >= ?`, day.getTime()).n,
+      total_revenue: q(`SELECT COALESCE(SUM(amount),0) n FROM jobs WHERE payment_id IS NOT NULL AND payment_id NOT LIKE 'pay_test_%' AND status='done'`).n,
       queued: q("SELECT COUNT(*) n FROM jobs WHERE status IN ('queued','printing')").n,
       needs_attention: q("SELECT COUNT(*) n FROM jobs WHERE status IN ('refund_failed')").n,
     };

@@ -72,6 +72,7 @@ function openDb(dataDir) {
              SELECT order_id,id,amount,currency,payment_id,CASE WHEN payment_id IS NULL THEN 'created' ELSE 'paid' END,created_at FROM jobs_old WHERE order_id IS NOT NULL;
              DROP TABLE jobs_old;`);
   }
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('jobs') WHERE name='source'").get()) db.exec('ALTER TABLE jobs ADD COLUMN source TEXT');
   return db;
 }
 
