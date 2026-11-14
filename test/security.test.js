@@ -80,15 +80,19 @@ test('admin setup: needs the on-device code; then login, CSRF header, no secret 
   assert.equal((await ctx.api('POST', '/api/admin/setup', { code: 'WRONGCODE', password: 'correct horse battery' }, X)).status, 400);
   assert.equal((await ctx.api('POST', '/api/admin/setup', { code, password: 'short' }, X)).status, 400);
   assert.equal((await ctx.api('POST', '/api/admin/setup', { code, password: 'correct horse battery' })).status, 403); // no CSRF header
-  const ok = await ctx.api('POST', '/api/admin/setup', { code, password: 'correct horse battery' }, X);
+  assert.equal((await ctx.api('POST', '/api/admin/setup', { code, password: 'correct horse battery', username: 'a b' }, X)).status, 400); // bad username
+  const ok = await ctx.api('POST', '/api/admin/setup', { code, password: 'correct horse battery', username: 'Shop.Owner' }, X);
   assert.equal(ok.status, 200);
   const cookie = ok.headers.get('set-cookie');
   assert.match(cookie, /HttpOnly/); assert.match(cookie, /SameSite=Strict/);
   assert.equal((await ctx.api('POST', '/api/admin/setup', { code, password: 'another password!' }, X)).status, 400); // can't re-run
 
   const c = { ...X, Cookie: cookie.split(';')[0] };
-  assert.equal((await ctx.api('POST', '/api/admin/login', { password: 'nope' }, X)).status, 401);
-  assert.equal((await ctx.api('POST', '/api/admin/login', { password: 'correct horse battery' })).status, 403);
+  assert.equal((await ctx.api('POST', '/api/admin/login', { username: 'Shop.Owner', password: 'nope' }, X)).status, 401);
+  assert.equal((await ctx.api('POST', '/api/admin/login', { username: 'someone-else', password: 'correct horse battery' }, X)).status, 401);
+  assert.equal((await ctx.api('POST', '/api/admin/login', { password: 'correct horse battery' }, X)).status, 401);
+  assert.equal((await ctx.api('POST', '/api/admin/login', { username: 'shop.owner', password: 'correct horse battery' }, X)).status, 200); // case-insensitive
+  assert.equal((await ctx.api('POST', '/api/admin/login', { username: 'Shop.Owner', password: 'correct horse battery' })).status, 403);
 
   const rz = await ctx.api('PUT', '/api/admin/settings', { razorpay_key_id: H.KEY_ID, razorpay_key_secret: H.KEY_SECRET, business_name: '<b>Shop</b>' }, c);
   assert.equal(rz.status, 200);
@@ -117,7 +121,7 @@ test('login is rate limited', async () => {
   process.env.RATE_LIMIT_SCALE = '1';
   const strict = await H.start();
   let last;
-  for (let i = 0; i < 12; i++) last = await strict.api('POST', '/api/admin/login', { password: 'x' + i }, X);
+  for (let i = 0; i < 12; i++) last = await strict.api('POST', '/api/admin/login', { username: 'u', password: 'x' + i }, X);
   assert.equal(last.status, 429);
   await strict.close();
   process.env.RATE_LIMIT_SCALE = saved;
@@ -189,4 +193,21 @@ x,y=pts["${where}"]; r,g,b=im.getpixel((int(x),int(y))); print("red" if r>200 an
     assert.equal(out.split(' ')[0], 'red', `orientation ${o}: expected red at ${where}, got ${out}`);
     assert.equal(out.split(' ')[1], o === '1' || o === '3' ? 'landscape' : 'portrait', `orientation ${o} page shape`);
   }
+});
+
+test('Pi edition signs in with a module number, not a chosen username', () => {
+  const config = require('../src/config');
+  const { Auth } = require('../src/auth');
+  const store = {};
+  const fake = { get: k => store[k] ?? (k === 'admin_password_hash' ? '' : ''), setInternal: (k, v) => { store[k] = v; } };
+  const prev = config.EDITION; config.EDITION = 'pi';
+  try {
+    const a = new Auth(fake);
+    assert.equal(a.identityLabel, 'Module number');
+    assert.match(a.identity, /^PN-[A-Z2-9]{6}$/);
+    assert.equal(a.identity, new Auth(fake).identity, 'stable across restarts');
+    assert.equal(a.setup(a.ensureSetupCode(), 'a long enough password', 'ignored-name').ok, true);
+    assert.equal(a.login('ignored-name', 'a long enough password'), null);
+    assert.ok(a.login(a.identity.toLowerCase(), 'a long enough password'));
+  } finally { config.EDITION = prev; }
 });

@@ -24,7 +24,13 @@
     show($('shell'), false); show($('auth'), true);
     const setup = session.setup_required;
     $('authTitle').textContent = setup ? 'Set up your kiosk' : 'Sign in';
-    $('authHelp').textContent = setup ? 'Choose an admin password. You will need the setup code from the device.' : 'Admin access for this kiosk.';
+    const pi = session.edition === 'pi', lbl = session.identity_label || 'Username';
+    $('authHelp').textContent = setup ? (pi ? 'Choose an admin password. You will need the setup code from the device.' : 'Choose a username and password. You will need the setup code from the app window.') : 'Admin access for this kiosk.';
+    $('userRow').firstChild.textContent = lbl + ' ';
+    $('username').placeholder = pi ? 'PN-XXXXXX' : 'admin';
+    $('username').autocomplete = setup ? 'off' : 'username';
+    show($('userRow'), !(setup && pi));
+    $('userHint').textContent = pi && !setup ? 'Printed on the label of your unit.' : '';
     show($('codeRow'), setup); show($('pw2Row'), setup); $('setupHint').textContent = session.setup_hint || '';
     $('password').autocomplete = setup ? 'new-password' : 'current-password';
     $('authBtn').textContent = setup ? 'Create admin account' : 'Sign in';
@@ -34,8 +40,8 @@
     try {
       if (session.setup_required) {
         if ($('password').value !== $('password2').value) throw new Error('Passwords do not match');
-        await api('POST', '/api/admin/setup', { code: $('code').value, password: $('password').value });
-      } else await api('POST', '/api/admin/login', { password: $('password').value });
+        await api('POST', '/api/admin/setup', { code: $('code').value, password: $('password').value, username: $('username').value });
+      } else await api('POST', '/api/admin/login', { username: $('username').value, password: $('password').value });
       $('password').value = $('password2').value = '';
       await boot();
     } catch (err) { $('authError').textContent = err.message; show($('authError'), true); }
@@ -83,7 +89,7 @@
 
     try { const { jobs } = await api('GET', '/api/admin/jobs'); allJobs = jobs; renderRows($('recentTable'), jobs.slice(0, 6), false); show($('recentEmpty'), jobs.length === 0); } catch {}
     const kv = $('sysList'); kv.replaceChildren();
-    const rows = [['Version', sys.version], ['Open this kiosk at', sys.addresses.map(a => `http://${a}`).join('  ·  ') || 'n/a'], ['Hostname', sys.hostname],
+    const rows = [['Version', sys.version], ['Open this kiosk at', sys.addresses.map(a => `http://${a}`).join('  ·  ') || 'n/a'], ['Hostname', sys.hostname], [sys.identity_label, sys.identity],
       ['Payments', sys.payment_mode === 'free' ? 'off (free)' : `Razorpay (${sys.razorpay_mode})`],
       ['Memory free', `${sys.mem_free_mb} / ${sys.mem_total_mb} MB`], ['Storage free', sys.disk ? `${sys.disk.free_mb} / ${sys.disk.total_mb} MB` : 'n/a'],
       ['CPU temperature', sys.cpu_temp_c != null ? `${sys.cpu_temp_c.toFixed(1)} °C` : 'n/a'], ['Uptime', `${Math.floor(sys.uptime_s / 3600)} h ${Math.floor(sys.uptime_s % 3600 / 60)} min`], ['Node', sys.node]];
@@ -168,6 +174,7 @@
   async function loadSettings() {
     settings = await api('GET', '/api/admin/settings');
     $('abName').textContent = settings.business_name;
+    api('GET', '/api/admin/system').then(s => { $('unameNew').value = s.identity; show($('unameRow'), s.identity_label === 'Username'); }).catch(() => {});
     document.title = settings.business_name + ' · Admin';
     for (const inp of form.elements) {
       if (!inp.name) continue;
@@ -204,7 +211,7 @@
   });
   $('pwForm').addEventListener('submit', async e => {
     e.preventDefault(); const m = $('pwMsg');
-    try { await api('POST', '/api/admin/password', { current: $('pwCur').value, next: $('pwNew').value }); m.textContent = 'Password changed.'; m.className = 'small ok'; $('pwCur').value = $('pwNew').value = ''; }
+    try { await api('POST', '/api/admin/password', { current: $('pwCur').value, next: $('pwNew').value, username: $('unameNew').value }); m.textContent = 'Saved.'; m.className = 'small ok'; $('pwCur').value = $('pwNew').value = ''; }
     catch (err) { m.textContent = err.message; m.className = 'small error'; }
     show(m, true);
   });

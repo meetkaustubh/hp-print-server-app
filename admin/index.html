@@ -19,6 +19,7 @@
         <input id="code" type="text" autocapitalize="characters" spellcheck="false" placeholder="8 characters" maxlength="12">
         <small class="muted" id="setupHint"></small>
       </label>
+      <label id="userRow">Username <input id="username" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="32"><small class="muted" id="userHint"></small></label>
       <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
       <label id="pw2Row" hidden>Repeat password <input id="password2" type="password" autocomplete="new-password"></label>
       <div id="authError" class="error" role="alert" hidden></div>
@@ -137,8 +138,9 @@
 
         <form id="pwForm" class="card stack pwcard">
           <h2>Change admin password</h2>
+          <label id="unameRow">Username <input id="unameNew" type="text" maxlength="32" autocomplete="off" spellcheck="false"><small class="muted">Leave as is to keep it. You sign in with this.</small></label>
           <label>Current password <input id="pwCur" type="password" autocomplete="current-password"></label>
-          <label>New password (10+ characters) <input id="pwNew" type="password" autocomplete="new-password"></label>
+          <label>New password (10+ characters, leave blank to keep) <input id="pwNew" type="password" autocomplete="new-password"></label>
           <div id="pwMsg" class="small" hidden></div>
           <button class="btn" type="submit">Change password</button>
         </form>

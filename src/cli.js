@@ -18,6 +18,7 @@ if (cmd === 'reset-admin') {
   console.log('Restart the service, then open /admin and use this code to choose a new password.');
 } else if (cmd === 'init') {
   const code = auth.ensureSetupCode();
+  auth.publishModuleNumber();
   console.log(code ? `Setup code: ${code}` : 'Already set up.');
 } else {
   console.log('Usage: node src/cli.js <init|reset-admin>');
