@@ -10,7 +10,7 @@ if not exist node_modules (
   call npm ci --omit=dev --no-audit --no-fund
   if errorlevel 1 ( echo Install failed. & pause & exit /b 1 )
 )
-set PORT=3000
+if not defined PORT set PORT=3000
 set PRINT_BACKEND=windows
 echo.
 echo Starting Print Nimbus on http://localhost:%PORT% with auto-update   (close this window to stop)
