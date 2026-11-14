@@ -84,3 +84,4 @@ a.btn{display:inline-flex;align-items:center;text-decoration:none}
 .tmsteps{padding-left:20px;margin:16px 0 0}
 #tmOptions{margin-top:12px}
 .narrow a.btn{width:auto;padding:0 18px;display:inline-flex;align-items:center;text-decoration:none}
+.lvl{display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;align-items:end;margin-bottom:10px}.lvl>span{font-weight:700;padding-bottom:12px}.lvl label{margin:0}

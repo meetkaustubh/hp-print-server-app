@@ -3,14 +3,28 @@
 function rates(s, bulk) {
   return { bw: bulk ? (s.bulk_price_bw || s.price_bw) : s.price_bw, color: bulk ? (s.bulk_price_color || s.price_color) : s.price_color };
 }
-/** colourPages = how many of the selected pages contain colour (only used when colour billing is per page). */
-function computePrice(s, { pages, copies, color, colourPages = null, bulk = false }) {
+/** Price multiplier for a colour page whose coloured area is `cov` (0..1): heavier colour costs more. */
+function colourMultiplier(s, cov) {
+  const c = (cov || 0) * 100;
+  const extra = [[s.color_medium_pct, s.color_medium_extra], [s.color_medhigh_pct, s.color_medhigh_extra], [s.color_high_pct, s.color_high_extra]]
+    .filter(([pct]) => c >= pct).reduce((m, [, e]) => Math.max(m, e), 0);   // the highest surcharge among the levels this page reaches
+  return 1 + extra / 100;
+}
+/**
+ * pages = number of selected pages. colourMap = { page: coveredFraction } for the selected pages that contain colour
+ * (reported by the browser), or null when unknown.
+ */
+function computePrice(s, { pages, copies, color, colourMap = null, bulk = false }) {
   const r = rates(s, bulk);
   let per;
   if (!color) per = pages * r.bw;
-  else if (s.color_billing === 'per_page' && colourPages != null) per = colourPages * r.color + (pages - colourPages) * r.bw;
-  else per = pages * r.color;
-  const raw = per * copies;
+  else if (!colourMap) per = pages * r.color;
+  else {
+    const covs = Object.values(colourMap);
+    const plain = s.color_billing === 'per_page' ? r.bw : r.color;   // pages without colour
+    per = (pages - covs.length) * plain + covs.reduce((n, cov) => n + r.color * colourMultiplier(s, cov), 0);
+  }
+  const raw = Math.round(per * copies);
   return Math.max(raw, raw > 0 ? s.min_charge : 0);
 }
 /** Bulk rates apply when the whole order is big enough. */
@@ -44,4 +58,4 @@ function compactRange(pages) {
   return out.join(',');
 }
 
-module.exports = { isBulk, computePrice, parsePageRange, compactRange };
+module.exports = { isBulk, colourMultiplier, computePrice, parsePageRange, compactRange };

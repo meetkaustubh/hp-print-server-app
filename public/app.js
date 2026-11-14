@@ -105,28 +105,30 @@
       if (Math.max(r, g, b) - Math.min(r, g, b) > 40) colour++;
       if ((r + g + b) / 3 < 235) ink++;
     }
-    // how much colour a page needs to count as a colour page is the admin's "colour detection level"
-    const frac = colour / (w * hgt), lvl = (cfg && cfg.color_sensitivity) || 'high';
-    const isColour = lvl === 'low' ? frac >= 0.025 : lvl === 'medium' ? frac >= 0.004 : colour >= 12;
-    return { colour: isColour, blank: ink <= 2 };
+    return { colour: colour >= 12, cov: colour / (w * hgt), blank: ink <= 2 };
   }
 
   /* ---------- documents ---------- */
   let seq = 0;
   function newDoc(file) {
     return { key: ++seq, file, name: file.name, id: null, pages: 0, state: 'queued', step: 0, progress: 0, error: '', pdf: null, thumb: null,
-      colourPages: new Set(), blankPages: new Set(), analysed: false, expanded: false, opts: { copies: 1, color: false, duplex: false, selected: null }, el: null, ui: {} };
+      colourPages: new Set(), colourCov: new Map(), blankPages: new Set(), analysed: false, expanded: false, opts: { copies: 1, color: false, duplex: false, selected: null }, el: null, ui: {} };
   }
   const selSet = d => d.opts.selected || allPages(d.pages);
   /* Mirrors src/pricing.js. The server recomputes everything at checkout; this is only for the on-screen price. */
   const orderPages = () => docs.filter(x => x.state === 'ready').reduce((n, x) => n + selSet(x).size * x.opts.copies, 0);
   const bulkNow = () => cfg.bulk_min_pages > 0 && orderPages() >= cfg.bulk_min_pages;
   const colourSel = d => { const s = selSet(d); return [...d.colourPages].filter(p => s.has(p)); };
-  const perPage = d => d.opts.color && cfg.color_billing === 'per_page' && d.analysed;
+  const perPage = d => d.opts.color && d.analysed;
+  const mult = cov => { const c = cov * 100; return 1 + [[cfg.color_medium_pct, cfg.color_medium_extra], [cfg.color_medhigh_pct, cfg.color_medhigh_extra], [cfg.color_high_pct, cfg.color_high_extra]].filter(([p]) => c >= p).reduce((m, [, e]) => Math.max(m, e), 0) / 100; };
+  const heavySel = d => colourSel(d).filter(p => mult(d.colourCov.get(p) || 0) > 1);
   function docCost(d) {
     const bulk = bulkNow(), pc = bulk ? cfg.bulk_price_color : cfg.price_color, pb = bulk ? cfg.bulk_price_bw : cfg.price_bw, n = selSet(d).size;
-    const per = !d.opts.color ? n * pb : perPage(d) ? colourSel(d).length * pc + (n - colourSel(d).length) * pb : n * pc;
-    return per * d.opts.copies;
+    let per;
+    if (!d.opts.color) per = n * pb;
+    else if (!perPage(d)) per = n * pc;
+    else { const cs = colourSel(d); per = (n - cs.length) * (cfg.color_billing === 'per_page' ? pb : pc) + cs.reduce((t, p) => t + pc * mult(d.colourCov.get(p) || 0), 0); }
+    return Math.round(per * d.opts.copies);
   }
 
   function addFiles(list) {
@@ -179,7 +181,7 @@
         d.ui.scanText && (d.ui.scanText.textContent = `Checking page ${p} of ${n}`);
         const ctx = await renderPage(d.pdf, p, 70, small);
         const r = analyse(ctx, small.width, small.height);
-        if (r.colour) d.colourPages.add(p); if (r.blank) d.blankPages.add(p);
+        if (r.colour) { d.colourPages.add(p); d.colourCov.set(p, r.cov); } if (r.blank) d.blankPages.add(p);
         if (p % 4 === 0) await sleep(0);
       }
       d.analysed = true; void first;
@@ -238,6 +240,8 @@
       if (!d.colourPages.size) out.push(h('p', { class: 'chip good', text: d.opts.color ? '✔ No colour found in this file. B&W would look the same and cost less.' : '✔ No colour detected: black & white is all you need.' }));
       else if (d.opts.color && !colourSel.length) out.push(h('p', { class: 'chip warn', text: 'The pages you picked have no colour. B&W would cost less.' }));
       else out.push(h('p', { class: 'chip' }, `🎨 Colour on ${plural(d.colourPages.size, 'page')}${d.colourPages.size <= 6 ? ': ' + compact(d.colourPages) : ''}`, d.opts.color && cfg.color_billing === 'per_page' ? ' · only these pages pay the colour price' : '', d.colourPages.size < d.pages ? h('button', { class: 'link', type: 'button', text: 'Print only these', onclick: () => { d.opts.selected = new Set(d.colourPages); d.opts.color = true; syncRadios(d); refreshDoc(d); saveCart(); } }) : null));
+      const hv = d.opts.color ? heavySel(d) : [];
+      if (hv.length) out.push(h('p', { class: 'chip warn', text: `🖨️ Heavy colour on ${plural(hv.length, 'page')}${hv.length <= 6 ? ': ' + compact(hv) : ''}. These cost extra because they use more ink.` }));
       const blankSel = [...d.blankPages].filter(p => sel.has(p));
       if (blankSel.length) out.push(h('p', { class: 'chip' }, `📄 ${plural(blankSel.length, 'blank page')} found`, h('button', { class: 'link', type: 'button', text: 'Skip blank pages', onclick: () => { const s2 = new Set(sel); blankSel.forEach(p => s2.delete(p)); if (!s2.size) return; d.opts.selected = s2.size === d.pages ? null : s2; refreshDoc(d); saveCart(); } })));
     }
@@ -373,7 +377,7 @@
   /* ---------- checkout ---------- */
   async function pay() {
     if (busy) return; busy = true; layoutTotals(); $('optsError').textContent = ''; show($('optsError'), false);
-    const items = docs.filter(d => d.state === 'ready').map(d => ({ id: d.id, copies: d.opts.copies, color: d.opts.color, duplex: d.opts.duplex, page_range: d.opts.selected ? compact(d.opts.selected) : '', colour_pages: perPage(d) ? colourSel(d) : undefined }));
+    const items = docs.filter(d => d.state === 'ready').map(d => ({ id: d.id, copies: d.opts.copies, color: d.opts.color, duplex: d.opts.duplex, page_range: d.opts.selected ? compact(d.opts.selected) : '', colour_pages: perPage(d) ? Object.fromEntries(colourSel(d).map(p => [p, Math.round((d.colourCov.get(p) || 0) * 1000) / 1000])) : undefined }));
     try {
       const res = await api('POST', '/api/checkout', { items });
       batchId = res.batch.id;

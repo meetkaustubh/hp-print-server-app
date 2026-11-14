@@ -149,9 +149,11 @@
           <div class="card"><h2>Colour &amp; bulk pricing</h2>
             <label>How colour pages are charged
               <select name="color_billing"><option value="all">Every page at the colour price when colour is chosen</option><option value="per_page">Only pages that really contain colour at the colour price, the rest at the B&amp;W price</option></select></label>
-            <label>Colour detection level
-              <select name="color_sensitivity"><option value="high">High: any visible colour makes a page a colour page</option><option value="medium">Medium: a page needs some colour (about 0.4% of it)</option><option value="low">Low: only clearly coloured pages (about 2.5% of the page or more)</option></select>
-              <small class="muted">Lower levels let pages with just a small logo or link colour be charged as black &amp; white.</small></label>
+            <div class="note"><b>Heavy colour surcharge.</b> Pages with a lot of colour use more ink. Set how much of a page must be coloured for each level, and the extra percentage charged on top of the colour price. Pages below the first level are charged the normal colour price.</div>
+            <div class="lvl"><span>Medium</span><label>from % of page <input name="color_medium_pct" type="number" min="1" max="100"></label><label>extra % <input name="color_medium_extra" type="number" min="0" max="1000"></label></div>
+            <div class="lvl"><span>Medium-high</span><label>from % of page <input name="color_medhigh_pct" type="number" min="1" max="100"></label><label>extra % <input name="color_medhigh_extra" type="number" min="0" max="1000"></label></div>
+            <div class="lvl"><span>High</span><label>from % of page <input name="color_high_pct" type="number" min="1" max="100"></label><label>extra % <input name="color_high_extra" type="number" min="0" max="1000"></label></div>
+            <small class="muted">Example: High from 60% with 100% extra means a page that is more than 60% coloured costs double the colour price. Set an extra to 0 to switch a level off.</small>
             <label>Bulk rate starts at (pages in one order, 0 = off) <input name="bulk_min_pages" type="number" min="0"></label>
             <div class="two">
               <label>Bulk B&amp;W, per page (₹) <input name="bulk_price_bw" type="number" step="0.25" min="0"></label>
