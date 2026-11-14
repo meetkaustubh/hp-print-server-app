@@ -116,7 +116,10 @@
             </div>
           </div>
           <div class="card"><h2>Documents &amp; privacy</h2>
-            <label>Delete files after (minutes) <input name="retention_minutes" type="number" min="1" max="1440"></label>
+            <label class="check"><input type="checkbox" name="retain_files"> Keep printed files until I delete them</label>
+            <small class="muted">Off (recommended): each file is deleted automatically after printing. On: files stay so you can reprint or download them from Jobs, and you delete them by hand.</small>
+            <label>Delete files after (minutes) <input name="retention_minutes" type="number" min="1" max="1440"><small class="muted">Used when “keep printed files” is off.</small></label>
+            <div class="row"><button class="btn" id="deleteAll" type="button">Delete all stored files now</button><span id="deleteAllMsg" class="muted small"></span></div>
           </div>
           <div class="card"><h2>Alerts &amp; links</h2>
             <label>Alert webhook URL <input name="notify_webhook" placeholder="https://ntfy.sh/my-secret-topic" spellcheck="false"><small class="muted">Called when a print or refund fails. Works with ntfy.sh, Slack and Discord webhooks.</small></label>

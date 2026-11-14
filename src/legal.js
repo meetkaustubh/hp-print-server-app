@@ -7,13 +7,14 @@ function render(page, s) {
   const name = esc(s.business_name);
   const contact = s.support_contact ? esc(s.support_contact) : 'the contact shown on the kiosk';
   const ret = s.retention_minutes;
+  const keep = s.retain_files;
   const pages = {
     privacy: ['Privacy Policy', `
       <p>${name} lets you print documents from your phone or computer. This page explains what we handle.</p>
       <h2>What we collect</h2>
       <p>The document you upload, your print options, and payment references (order and payment IDs) supplied by Razorpay. We do not receive your card, UPI or bank details; those go directly to Razorpay.</p>
       <h2>How long we keep it</h2>
-      <p>Uploaded files are deleted automatically about ${ret} minute(s) after printing finishes or fails, and unpaid uploads are deleted within 30 minutes. We keep a record of job metadata (page count, amount, payment reference, time) for accounting and refunds, but never the document contents.</p>
+      <p>${keep ? 'Printed files are kept by the shop owner until they delete them by hand, and' : `Uploaded files are deleted automatically about ${ret} minute(s) after printing finishes or fails, and`} unpaid uploads are deleted within 30 minutes. We keep a record of job metadata (page count, amount, payment reference, time) for accounting and refunds, but never the document contents.</p>
       <h2>Who sees your documents</h2>
       <p>Your document is sent only to the printer attached to this kiosk. It is not shared with third parties. Do not upload documents you are not comfortable having processed on a shared device.</p>
       <h2>Contact</h2><p>Questions: ${contact}.</p>`],

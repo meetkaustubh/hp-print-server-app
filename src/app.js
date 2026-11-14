@@ -231,6 +231,19 @@ function createApp({ settings, printer, jobs, auth }) {
     res.status(r.ok ? 200 : 409).json(r);
   });
   admin.post('/jobs/:id/reprint', async (req, res, next) => { try { await jobs.reprint(req.params.id); res.json({ ok: true }); } catch (e) { next(e); } });
+  admin.delete('/jobs/:id/file', (req, res) => {
+    const j = jobs.get(req.params.id);
+    if (!j) return res.status(404).json({ error: 'Not found' });
+    if (['queued', 'printing'].includes(j.status)) return res.status(409).json({ error: 'This job is printing right now.' });
+    jobs.dropFile(j.id); jobs.event(j.id, 'admin_file_deleted');
+    res.json({ ok: true });
+  });
+  admin.get('/jobs/:id/file', (req, res) => {
+    const j = jobs.get(req.params.id);
+    if (!j || !j.file_path || !fs.existsSync(j.file_path)) return res.status(404).json({ error: 'The file is not stored.' });
+    res.download(j.file_path, (j.original_name || 'document').replace(/\.[^.]*$/, '') + '.pdf');
+  });
+  admin.post('/files/delete-all', (req, res) => res.json({ deleted: jobs.dropAllFinished() }));
   admin.get('/qr.svg', async (req, res) => {
     const url = settings.get('public_url') || `${req.protocol}://${req.get('host')}`;
     res.type('image/svg+xml').send(await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' }));
