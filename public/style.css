@@ -494,3 +494,38 @@ dialog.testpay .link{display:block;margin:14px auto 0}
 .bdnote{font-size:13px;padding:6px 0;color:var(--muted)}.bdnote.good{color:var(--ok);font-weight:600}
 .bdtotal{border-top:1px solid var(--line);margin-top:6px;padding-top:10px;font-size:16px}
 .bdtotal b{font-weight:700}
+
+/* ---------- phone: smaller, less cluttered ---------- */
+@media(max-width:560px){
+  body{font-size:14px}
+  .top{padding-top:24px}
+  .top img{width:46px;height:46px}
+  .brand h1{font-size:28px}
+  .brand p{font-size:14px}
+  .vcard{grid-template-columns:92px 1fr;column-gap:12px;row-gap:10px}
+  .vtitle{font-size:15px}.vsub{font-size:12px}.vprice{font-size:17px}
+  .vcard .badge{font-size:10px}
+  .opts{padding:0 14px;border-radius:14px}
+  .opts .field,.opts .orow{grid-template-columns:62px 1fr;gap:8px;padding:9px 0}
+  .opts .orow .stepper{justify-self:end}
+  .opts .label{font-size:13px}
+  .opts .seg{gap:6px}
+  .opts .seg span{min-height:34px;font-size:12.5px;padding:2px 6px;border-radius:10px}
+  .opts .seg small{font-size:10px}
+  .opts .stepper button{width:34px;height:32px}.opts .stepper input{width:36px;height:32px;font-size:14px}
+  .opts .pagesbtn{min-height:34px;font-size:13px;padding:2px 10px;border-radius:10px}
+  .opts .chips{padding:8px 0 2px;gap:6px}
+  .opts .chip{font-size:12px;padding:5px 8px}
+  .opts .rmbtn{font-size:13px;padding:9px 0 8px}
+  .chipbar .chipbtn,.chipbtn{font-size:13px;padding:6px 12px}
+  .paybar .sum{font-size:13px}.paybar .sum strong{font-size:20px}
+  .paybar .btn{min-height:46px;font-size:15px}
+  .paybar .cancelall{min-height:38px;font-size:14px;margin-top:8px}
+  .paybar .legal{font-size:11px;margin-top:8px}
+  .breakdown{padding:2px 12px;border-radius:12px}
+  .breakdown summary{padding:8px 0;font-size:13px}
+  .bdrow,.bdname{font-size:13px}
+  .bulkhint{font-size:12px;margin-top:4px}
+  .addmore{min-height:40px;font-size:14px}
+  .vthumb .badge.colour{display:none}
+}
