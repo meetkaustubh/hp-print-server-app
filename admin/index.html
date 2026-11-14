@@ -26,18 +26,25 @@
     </form>
   </div>
 
-  <div id="shell" hidden>
-    <header class="adminbar">
-      <strong id="abName">Admin</strong>
-      <nav id="tabs" role="tablist">
-        <button role="tab" data-tab="dash" aria-selected="true">Dashboard</button>
-        <button role="tab" data-tab="jobs">Jobs</button>
-        <button role="tab" data-tab="settings">Settings</button>
-        <button role="tab" data-tab="poster">QR poster</button>
+  <div id="shell" class="dash" hidden>
+    <aside class="side" id="side">
+      <div class="sidebrand"><img src="/brand-logo" alt="" width="36" height="36"><strong id="abName">Admin</strong></div>
+      <nav id="tabs" role="tablist" aria-label="Admin sections">
+        <button role="tab" data-tab="dash" aria-selected="true"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 13h6V4H4v9zm0 7h6v-4H4v4zm10 0h6v-9h-6v9zm0-16v4h6V4h-6z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Dashboard</span></button>
+        <button role="tab" data-tab="jobs"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Jobs</span></button>
+        <button role="tab" data-tab="settings"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7.6 7.6 0 0 0-2-1.2L14.600 3h-4l-.4 2.6a7.600 7.600 0 0 0-2 1.200l-2.300-.9-2 3.400 2 1.500a7.400 7.400 0 0 0 0 2.400l-2 1.500 2 3.400 2.300-.9c.600.500 1.300.900 2 1.200l.400 2.600h4l.4-2.600c.700-.300 1.400-.700 2-1.200l2.300.900 2-3.400-2-1.500c.1-.400.1-.800.1-1.200z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Settings</span></button>
+        <button role="tab" data-tab="poster"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>QR poster</span></button>
       </nav>
-      <button id="logout" class="link">Sign out</button>
-    </header>
-
+      <div class="sidefoot">
+        <button id="adminTheme" class="sidebtn" type="button"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Dark / light</span></button>
+        <button id="logout" class="sidebtn" type="button"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 17l5-5-5-5M20 12H9M12 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Sign out</span></button>
+      </div>
+    </aside>
+    <div class="content">
+      <header class="topbar">
+        <h1 id="pageTitle">Dashboard</h1>
+        <span id="topStatus" class="pill" role="status">Checking…</span>
+      </header>
     <main class="adminmain">
       <section id="tab-dash" class="tab">
         <div id="alerts"></div>
@@ -52,10 +59,14 @@
           </div>
           <p id="printerMsg" class="muted small"></p>
         </div>
+        <div class="card nopad"><div class="cardhead"><h2>Recent jobs</h2><button class="link" id="seeAll" type="button">See all</button></div>
+          <div class="tablewrap"><table id="recentTable"><thead><tr><th>Time</th><th>File</th><th>Details</th><th>Amount</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+          <p id="recentEmpty" class="muted pad" hidden>No jobs yet. Print something to see it here.</p></div>
         <div class="card"><h2>System</h2><dl id="sysList" class="kv"></dl></div>
       </section>
 
       <section id="tab-jobs" class="tab" hidden>
+        <div class="jobtools"><div id="jobFilters" class="chipbar2" role="group" aria-label="Filter jobs"></div><input id="jobSearch" type="search" placeholder="Search file name" aria-label="Search jobs"></div>
         <div class="card nopad"><div class="tablewrap"><table id="jobsTable">
           <thead><tr><th>Time</th><th>File</th><th>Details</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
           <p id="jobsEmpty" class="muted pad" hidden>No jobs yet.</p></div>
@@ -63,6 +74,7 @@
 
       <section id="tab-settings" class="tab" hidden>
         <form id="settingsForm" class="stack">
+          <div class="cards2">
           <div class="card"><h2>Business</h2>
             <label>Name shown to customers <input name="business_name" maxlength="60"></label>
             <label>Tagline <input name="tagline" maxlength="100"></label>
@@ -115,11 +127,12 @@
             </div>
             <label>Refund policy URL (optional) <input name="refund_url"><small class="muted">Leave blank to use the built-in template pages, which you should review before going live.</small></label>
           </div>
+          </div>
           <div id="saveError" class="error" role="alert" hidden></div>
           <div class="savebar"><button class="btn primary" type="submit" id="saveBtn">Save settings</button><span id="saveOk" class="ok" hidden>Saved ✓</span></div>
         </form>
 
-        <form id="pwForm" class="card stack">
+        <form id="pwForm" class="card stack pwcard">
           <h2>Change admin password</h2>
           <label>Current password <input id="pwCur" type="password" autocomplete="current-password"></label>
           <label>New password (10+ characters) <input id="pwNew" type="password" autocomplete="new-password"></label>
@@ -138,6 +151,7 @@
         </div>
       </section>
     </main>
+    </div>
   </div>
   <div id="toast" class="toast" role="status" hidden></div>
   <script src="/admin/assets/admin.js" defer></script>

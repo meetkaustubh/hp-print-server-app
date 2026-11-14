@@ -1,4 +1,4 @@
-body.admin{display:block;padding-bottom:40px}
+body.admin{display:block}
 .authwrap{min-height:100dvh;display:grid;place-items:center;padding:16px}
 .authcard{width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px}
 .authcard h1{margin:0}
@@ -9,20 +9,51 @@ label.check{display:flex;align-items:center;gap:10px;font-weight:500}
 label.check input{width:auto;margin:0;accent-color:var(--brand);width:20px;height:20px}
 small{display:block;font-weight:400;margin-top:4px}
 code{background:var(--brand-soft);padding:1px 6px;border-radius:6px;font-size:.85em;word-break:break-all}
-.adminbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line)}
-.adminbar nav{display:flex;gap:4px;flex:1;overflow-x:auto}
-.adminbar nav button{border:0;background:none;padding:9px 12px;border-radius:10px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
-.adminbar nav button[aria-selected=true]{background:var(--brand-soft);color:var(--brand)}
-.adminmain{max-width:980px;margin:0 auto;padding:16px;display:block}
-.adminmain .card{margin-bottom:16px}
-.adminmain h2{margin:0 0 12px;font-size:1.05rem}
+.dash{display:grid;grid-template-columns:248px 1fr;min-height:100dvh}
+.dash[hidden]{display:none}
+.side{position:sticky;top:0;height:100dvh;display:flex;flex-direction:column;gap:6px;padding:14px 12px;background:var(--card);border-right:1px solid var(--line)}
+.sidebrand{display:flex;align-items:center;gap:10px;padding:6px 10px 16px;font-size:1.05rem}
+.sidebrand img{border-radius:10px;object-fit:cover}
+.sidebrand strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side nav{display:flex;flex-direction:column;gap:2px}
+.side nav button,.sidebtn{display:flex;align-items:center;gap:14px;width:100%;border:0;background:none;padding:11px 14px;border-radius:999px;font:inherit;font-weight:500;color:var(--ink);cursor:pointer;text-align:left}
+.side nav button:hover,.sidebtn:hover{background:var(--chip,var(--line))}
+.side nav button[aria-selected=true]{background:var(--chip,var(--brand-soft));font-weight:700}
+.side nav button[aria-selected=true] svg{color:var(--brand)}
+.sidefoot{margin-top:auto;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:10px}
+.content{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 28px;background:var(--bg);border-bottom:1px solid var(--line)}
+.topbar h1{margin:0;font-size:1.5rem}
+.pill{display:inline-block;padding:6px 14px;border-radius:999px;font-size:.85rem;font-weight:700;background:var(--line);color:var(--muted)}
+.pill.ok{background:#e3f5e8;color:#0b6b2c}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.adminmain{padding:24px 28px 48px;display:block;width:100%;max-width:1500px}
+.adminmain .card{margin-bottom:20px}
+.adminmain h2{margin:0 0 14px;font-size:1.1rem}
+.cardhead{display:flex;justify-content:space-between;align-items:center;padding:16px 18px 4px}.cardhead h2{margin:0}
+.link{border:0;background:none;color:var(--brand);font:inherit;font-weight:600;cursor:pointer}
+.cards2{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:20px;align-items:start}
+.cards2 .card{margin-bottom:0}
+.pwcard{max-width:520px;margin-top:20px}
+.jobtools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:16px}
+.jobtools input{width:min(320px,100%);padding:10px 16px;border:1.5px solid var(--line);border-radius:999px;font:inherit;background:var(--card);color:var(--ink)}
+.chipbar2{display:flex;gap:8px;flex-wrap:wrap}
+.fchip{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:999px;font:inherit;font-size:.9rem;font-weight:500;cursor:pointer}
+.fchip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fname{max-width:360px;overflow:hidden;text-overflow:ellipsis}
+td.acts{text-align:right}
+tbody tr:hover{background:var(--chip,transparent)}
+@media(max-width:860px){.dash{grid-template-columns:1fr}
+ .side{position:fixed;inset:auto 0 0 0;height:auto;flex-direction:row;padding:6px;border-right:0;border-top:1px solid var(--line);z-index:15}
+ .sidebrand,.sidefoot{display:none}.side nav{flex-direction:row;width:100%;justify-content:space-around}
+ .side nav button{flex-direction:column;gap:2px;padding:8px 6px;font-size:.72rem;border-radius:12px;justify-content:center;align-items:center;text-align:center}
+ .topbar{padding:12px 16px}.adminmain{padding:16px 14px 100px}.cards2{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.stat{padding:14px}}
 .stack{display:flex;flex-direction:column;gap:0}
 .stack label{margin-bottom:14px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:560px){.two{grid-template-columns:1fr}}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
-.stat b{display:block;font-size:1.5rem}.stat span{color:var(--muted);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.stat b{display:block;font-size:1.9rem;margin-bottom:2px}.stat span{color:var(--muted);font-size:.85rem}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .row select{flex:1;min-width:180px;padding:11px;border:1.5px solid var(--line);border-radius:10px;font:inherit;background:var(--card);color:var(--ink)}
 .row .btn{width:auto;padding:0 18px}
@@ -44,4 +75,6 @@ th{color:var(--muted);font-weight:600;font-size:.8rem}
 td .btn{display:inline-block;width:auto;min-height:34px;padding:0 12px;font-size:.82rem;margin-right:6px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;z-index:20;max-width:90vw}
 .poster{padding:40px 20px}.qr{width:min(320px,80vw);margin:16px auto}.qr svg{width:100%;height:auto;background:#fff;border-radius:12px;padding:8px}
-@media print{.adminbar,.noprint,.toast{display:none!important}body{background:#fff}.card{border:0;box-shadow:none}.poster h2{font-size:2rem}}
+@media print{.side,.topbar,.noprint,.toast{display:none!important}body{background:#fff}.card{border:0;box-shadow:none}.poster h2{font-size:2rem}}
+
+@media print{.dash{display:block}}

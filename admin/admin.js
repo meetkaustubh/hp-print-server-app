@@ -47,8 +47,16 @@
     document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
     document.querySelectorAll('.tab').forEach(t => show(t, t.id === 'tab-' + name));
     if (name === 'jobs') loadJobs(); if (name === 'dash') loadDash(); if (name === 'poster') loadPoster();
+    $('pageTitle').textContent = { dash: 'Dashboard', jobs: 'Jobs', settings: 'Settings', poster: 'QR poster' }[name] || 'Dashboard';
+    window.scrollTo(0, 0);
     history.replaceState(null, '', '#' + name);
   }
+  $('seeAll').addEventListener('click', () => tab('jobs'));
+  $('adminTheme').addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('pn_theme', next); } catch {}
+  });
   $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) tab(b.dataset.tab); });
 
   async function loadAll() { await loadSettings(); tab((location.hash || '#dash').slice(1).replace(/[^a-z]/g, '') || 'dash'); }
@@ -68,10 +76,12 @@
     if (settings.payment_mode === 'razorpay' && !settings.razorpay_webhook_secret_set) add('No Razorpay webhook secret set. Payments made when a customer closes their browser early would not print. See Settings → Payments.', 'warn');
     if (sys.print_backend === 'dryrun') add('Running in DRY-RUN mode: nothing is sent to a real printer.', 'warn');
 
+    const ts = $('topStatus'); ts.textContent = pr.status.ready ? 'Printer ready' : 'Printer not ready'; ts.className = 'pill ' + (pr.status.ready ? 'ok' : 'bad');
     $('printerLine').textContent = `${pr.status.ready ? '✔' : '✖'} ${settings.printer_name || 'No printer selected'} — ${pr.status.detail || pr.status.state}`;
     const sel = $('printerSel'); sel.replaceChildren(el('option', { value: '', textContent: pr.printers.length ? 'Choose a printer…' : 'No printers found in CUPS' }));
     pr.printers.forEach(p => sel.append(el('option', { value: p.name, textContent: p.name + (p.isDefault ? ' (default)' : ''), selected: p.name === settings.printer_name })));
 
+    try { const { jobs } = await api('GET', '/api/admin/jobs'); allJobs = jobs; renderRows($('recentTable'), jobs.slice(0, 6), false); show($('recentEmpty'), jobs.length === 0); } catch {}
     const kv = $('sysList'); kv.replaceChildren();
     const rows = [['Version', sys.version], ['Open this kiosk at', sys.addresses.map(a => `http://${a}`).join('  ·  ') || 'n/a'], ['Hostname', sys.hostname],
       ['Payments', sys.payment_mode === 'free' ? 'off (free)' : `Razorpay (${sys.razorpay_mode})`],
@@ -90,28 +100,48 @@
 
   /* ---------- jobs ---------- */
   const BAD = new Set(['failed', 'refund_failed', 'expired']);
-  async function loadJobs() {
-    const { jobs } = await api('GET', '/api/admin/jobs');
-    const tb = $('jobsTable').tBodies[0]; tb.replaceChildren();
-    show($('jobsEmpty'), jobs.length === 0);
+  let allJobs = [], jobFilter = 'all';
+  const FILTERS = [['all', 'All'], ['active', 'In progress'], ['done', 'Done'], ['problem', 'Needs attention'], ['refunded', 'Refunded']];
+  const groupOf = st => BAD.has(st) && st !== 'expired' ? 'problem' : st === 'done' ? 'done' : st === 'refunded' ? 'refunded' : ['queued', 'printing', 'awaiting_payment', 'uploaded'].includes(st) ? 'active' : 'other';
+  function renderFilters() {
+    const box = $('jobFilters'); box.replaceChildren();
+    for (const [k, label] of FILTERS) {
+      const n = k === 'all' ? allJobs.length : allJobs.filter(j => groupOf(j.status) === k).length;
+      box.append(el('button', { type: 'button', className: 'fchip' + (jobFilter === k ? ' on' : ''), textContent: `${label} (${n})`, onclick: () => { jobFilter = k; renderJobs(); } }));
+    }
+  }
+  function renderJobs() {
+    renderFilters();
+    const q = $('jobSearch').value.trim().toLowerCase();
+    const list = allJobs.filter(j => (jobFilter === 'all' || groupOf(j.status) === jobFilter) && (!q || (j.original_name || '').toLowerCase().includes(q)));
+    renderRows($('jobsTable'), list, true);
+    $('jobsEmpty').textContent = allJobs.length ? 'No jobs match this filter.' : 'No jobs yet.';
+    show($('jobsEmpty'), list.length === 0);
+  }
+  $('jobSearch').addEventListener('input', renderJobs);
+  async function loadJobs() { const { jobs } = await api('GET', '/api/admin/jobs'); allJobs = jobs; renderJobs(); }
+  function renderRows(table, jobs, withActions) {
+    const tb = table.tBodies[0]; tb.replaceChildren();
     for (const j of jobs) {
       const tr = el('tr');
       tr.append(
         el('td', { textContent: new Date(j.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) }),
-        el('td', { textContent: j.original_name || '—', title: j.id }),
+        el('td', { textContent: j.original_name || '—', title: j.id, className: 'fname' }),
         el('td', { textContent: j.pages_selected ? `${j.pages_selected}p × ${j.copies}${j.color ? ' colour' : ' b/w'}${j.duplex ? ' duplex' : ''}` : '—' }),
         el('td', { textContent: j.amount ? rupees(j.amount) : '—' }),
       );
       const st = el('td', { className: 'wrap' }, el('span', { className: 'badge' + (BAD.has(j.status) ? ' bad' : ['uploaded', 'awaiting_payment', 'refunded'].includes(j.status) ? ' grey' : ''), textContent: j.status.replace('_', ' ') }));
-      if (j.error) st.append(el('small', { textContent: j.error }));
-      if (j.payment_id) st.append(el('small', { textContent: j.payment_id }));
+      if (withActions) { if (j.error) st.append(el('small', { textContent: j.error })); if (j.payment_id) st.append(el('small', { textContent: j.payment_id })); }
       tr.append(st);
-      const act = el('td');
-      if (j.payment_id && !j.refund_id && ['failed', 'refund_failed', 'done'].includes(j.status))
-        act.append(el('button', { className: 'btn', textContent: j.status === 'refund_failed' ? 'Retry refund' : 'Refund', onclick: () => refund(j) }));
-      if (j.has_file && ['failed', 'refund_failed', 'done'].includes(j.status))
-        act.append(el('button', { className: 'btn', textContent: 'Reprint', onclick: () => reprint(j) }));
-      tr.append(act); tb.append(tr);
+      if (withActions) {
+        const act = el('td', { className: 'acts' });
+        if (j.payment_id && !j.refund_id && ['failed', 'refund_failed', 'done'].includes(j.status))
+          act.append(el('button', { className: 'btn', textContent: j.status === 'refund_failed' ? 'Retry refund' : 'Refund', onclick: () => refund(j) }));
+        if (j.has_file && ['failed', 'refund_failed', 'done'].includes(j.status))
+          act.append(el('button', { className: 'btn', textContent: 'Reprint', onclick: () => reprint(j) }));
+        tr.append(act);
+      }
+      tb.append(tr);
     }
   }
   async function refund(j) {
@@ -125,7 +155,7 @@
   const form = $('settingsForm');
   async function loadSettings() {
     settings = await api('GET', '/api/admin/settings');
-    $('abName').textContent = settings.business_name + ' · Admin';
+    $('abName').textContent = settings.business_name;
     document.title = settings.business_name + ' · Admin';
     for (const inp of form.elements) {
       if (!inp.name) continue;
