@@ -46,11 +46,8 @@ test('images are converted to a printable PDF', async () => {
   assert.equal(r.json.job.pages_total, 1);
 });
 
-test('office documents are rejected while the feature is off, and fake ones when on', async () => {
-  assert.equal((await ctx.upload(Buffer.from('hello'), 'a.docx')).status, 415);
-  ctx.settings.set({ enable_office: true });
-  assert.equal((await ctx.upload(Buffer.from('not really a zip file'), 'a.docx')).status, 415);
-  ctx.settings.set({ enable_office: false });
+test('Word / Excel / PowerPoint / text files are not accepted', async () => {
+  for (const n of ['a.docx', 'a.doc', 'a.xlsx', 'a.pptx', 'a.txt', 'a.rtf']) assert.equal((await ctx.upload(Buffer.from('hello'), n)).status, 415, n);
 });
 
 test('static server: dotfiles, db, source and traversal are not reachable', async () => {

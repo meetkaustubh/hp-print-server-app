@@ -3,12 +3,10 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { spawn } = require('node:child_process');
 const { PDFDocument, degrees } = require('pdf-lib');
 const config = require('./config');
 
 const PAPER = { A4: [595.28, 841.89], Letter: [612, 792], A3: [841.89, 1190.55], Legal: [612, 1008] };
-const OFFICE_EXT = new Set(['doc', 'docx', 'odt', 'rtf', 'txt', 'xls', 'xlsx', 'ods', 'ppt', 'pptx', 'odp']);
 
 class UserError extends Error {
   constructor(msg, status = 400) { super(msg); this.userFacing = true; this.status = status; }
@@ -24,49 +22,8 @@ async function sniff(filePath) {
     if (head.subarray(0, 1024).includes('%PDF-')) return 'pdf';
     if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'jpg';
     if (head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
-    if (head.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) return 'zip-office';
-    if (head.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]))) return 'ole-office';
-    if (head.subarray(0, 5).toString('latin1') === '{\\rtf') return 'rtf';
-    if (bytesRead > 0 && !head.includes(0)) return 'text';
     return 'unknown';
   } finally { await fh.close(); }
-}
-
-let officeChain = Promise.resolve(); // only one LibreOffice at a time: it is RAM-hungry
-
-/** Run soffice in its own process group so a timeout kills soffice.bin too, not just the launcher. */
-function runSoffice(args, env, timeoutMs) {
-  return new Promise(resolve => {
-    const child = spawn(config.SOFFICE_BIN, args, { env, detached: true, stdio: 'ignore' });
-    let done = false;
-    const finish = ok => { if (!done) { done = true; clearTimeout(timer); resolve(ok); } };
-    const timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} finish(false); }, timeoutMs);
-    child.on('error', () => finish(false));
-    child.on('exit', code => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} finish(code === 0); });
-  });
-}
-
-function convertOffice(inputPath, ext) {
-  const run = async () => {
-    const work = await fsp.mkdtemp(path.join(config.DATA_DIR, 'tmp', 'office-'));
-    try {
-      const src = path.join(work, `input.${ext}`);
-      await fsp.copyFile(inputPath, src);
-      await runSoffice([
-        `-env:UserInstallation=file://${work}/profile`,
-        '--headless', '--norestore', '--nolockcheck', '--nodefault', '--nologo',
-        '--convert-to', 'pdf', '--outdir', work, src,
-      ], { PATH: process.env.PATH, HOME: work, LANG: 'C.UTF-8' }, 150_000);
-      const out = path.join(work, 'input.pdf');
-      if (!fs.existsSync(out)) throw new UserError('We could not convert that document. Try exporting it to PDF first.', 422);
-      const dest = path.join(config.DATA_DIR, 'tmp', `${crypto.randomBytes(8).toString('hex')}.pdf`);
-      await fsp.copyFile(out, dest);
-      return dest;
-    } finally { await fsp.rm(work, { recursive: true, force: true }).catch(() => {}); }
-  };
-  const p = officeChain.then(run, run);
-  officeChain = p.catch(() => {});
-  return p;
 }
 
 /** EXIF orientation (1-8) of a JPEG, or 1 when absent/unreadable. Phones store photos "sideways" plus this flag. */
@@ -139,25 +96,12 @@ async function normalise({ tmpPath, originalName, settings }) {
     pdf: kind === 'pdf',
     jpg: kind === 'jpg', jpeg: kind === 'jpg', png: kind === 'png',
   };
-  const isOffice = OFFICE_EXT.has(ext);
-  if (!isOffice && !okPairs[ext]) throw new UserError('The file content does not match its extension.', 415);
-  if (isOffice) {
-    const ok = (['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp'].includes(ext) && kind === 'zip-office')
-      || (['doc', 'xls', 'ppt'].includes(ext) && kind === 'ole-office')
-      || (ext === 'rtf' && kind === 'rtf') || (ext === 'txt' && kind === 'text');
-    if (!ok) throw new UserError('The file content does not match its extension.', 415);
-  }
+  if (!okPairs[ext]) throw new UserError('The file content does not match its extension.', 415);
 
   const out = path.join(config.DATA_DIR, 'jobs', `${crypto.randomBytes(16).toString('hex')}.pdf`);
-  const cleanup = [];
   try {
-    let pdfSource = tmpPath;
     if (kind === 'jpg' || kind === 'png') {
       await fsp.writeFile(out, await imageToPdf(tmpPath, kind, settings.get('default_paper')), { mode: 0o600 });
-    } else if (isOffice) {
-      pdfSource = await convertOffice(tmpPath, ext);
-      cleanup.push(pdfSource);
-      await fsp.copyFile(pdfSource, out);
     } else {
       await fsp.copyFile(tmpPath, out);
     }
@@ -168,8 +112,6 @@ async function normalise({ tmpPath, originalName, settings }) {
   } catch (e) {
     await fsp.rm(out, { force: true });
     throw e;
-  } finally {
-    for (const f of cleanup) await fsp.rm(f, { force: true }).catch(() => {});
   }
 }
 

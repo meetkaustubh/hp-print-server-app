@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # Print Nimbus installer for Raspberry Pi OS (Bookworm or newer, 64-bit Lite recommended).
-#   sudo ./deploy/install.sh [--with-office] [--hostname printnimbus]
+#   sudo ./deploy/install.sh [--hostname printnimbus]
 set -euo pipefail
 
-WITH_OFFICE=0; NEW_HOST=""
+NEW_HOST=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --with-office) WITH_OFFICE=1 ;;
     --hostname) NEW_HOST="${2:?hostname required}"; shift ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac; shift
@@ -20,7 +19,6 @@ export DEBIAN_FRONTEND=noninteractive
 echo "==> Installing system packages"
 apt-get update -y
 apt-get install -y --no-install-recommends cups cups-filters poppler-utils ghostscript avahi-daemon curl ca-certificates rsync
-[ "$WITH_OFFICE" -eq 1 ] && apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress fonts-liberation fonts-dejavu-core fonts-crosextra-carlito fonts-crosextra-caladea fonts-noto-core
 
 need_node=1
 if command -v node >/dev/null; then
@@ -41,9 +39,9 @@ chmod +x "$APP"/deploy/*.sh
 ( cd "$APP" && npm ci --omit=dev --no-audit --no-fund )
 chown -R root:root "$APP"
 
-echo "==> Swap (helps LibreOffice and npm on 512 MB boards)"
+echo "==> Swap (helps npm on 512 MB boards)"
 if [ -f /etc/dphys-swapfile ]; then
-  want=512; [ "$WITH_OFFICE" -eq 1 ] && want=1024
+  want=512
   sed -i "s/^#\?CONF_SWAPSIZE=.*/CONF_SWAPSIZE=$want/" /etc/dphys-swapfile
   dphys-swapfile setup >/dev/null 2>&1 && dphys-swapfile swapon >/dev/null 2>&1 || true
 fi
