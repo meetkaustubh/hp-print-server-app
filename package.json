@@ -1,19 +1,27 @@
 {
-  "name": "hp-print-server",
-  "version": "1.0.0",
-  "main": "App.js",
+  "name": "printnimbus",
+  "version": "2.1.0",
+  "description": "Self-service pay-and-print kiosk server for Raspberry Pi (CUPS + Razorpay)",
+  "main": "src/server.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "node src/server.js",
+    "dev": "PRINT_BACKEND=dryrun node --watch src/server.js",
+    "test": "node --test --test-concurrency=1 --test-timeout=200000 test/*.test.js"
   },
   "dependencies": {
-    "expo": "~50.0.0",
-    "react": "18.2.0",
-    "react-native": "0.73.6"
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "multer": "^2.0.0",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4"
   },
-  "devDependencies": {
-    "@babel/core": "^7.20.0"
+  "optionalDependencies": {
+    "pdf-to-printer": "^5.8.1"
   }
 }

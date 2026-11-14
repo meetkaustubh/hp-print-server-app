@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Admin</title>
+  <link rel="icon" href="/brand-logo">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/admin/assets/admin.css">
+</head>
+<body class="admin">
+  <div id="auth" class="authwrap" hidden>
+    <form id="authForm" class="card authcard" autocomplete="off">
+      <h1 id="authTitle">Sign in</h1>
+      <p id="authHelp" class="muted"></p>
+      <label id="codeRow" hidden>Setup code
+        <input id="code" type="text" autocapitalize="characters" spellcheck="false" placeholder="8 characters" maxlength="12">
+        <small class="muted" id="setupHint"></small>
+      </label>
+      <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+      <label id="pw2Row" hidden>Repeat password <input id="password2" type="password" autocomplete="new-password"></label>
+      <div id="authError" class="error" role="alert" hidden></div>
+      <button class="btn primary" type="submit" id="authBtn">Continue</button>
+    </form>
+  </div>
+
+  <div id="shell" hidden>
+    <header class="adminbar">
+      <strong id="abName">Admin</strong>
+      <nav id="tabs" role="tablist">
+        <button role="tab" data-tab="dash" aria-selected="true">Dashboard</button>
+        <button role="tab" data-tab="jobs">Jobs</button>
+        <button role="tab" data-tab="settings">Settings</button>
+        <button role="tab" data-tab="poster">QR poster</button>
+      </nav>
+      <button id="logout" class="link">Sign out</button>
+    </header>
+
+    <main class="adminmain">
+      <section id="tab-dash" class="tab">
+        <div id="alerts"></div>
+        <div class="grid" id="statGrid"></div>
+        <div class="card">
+          <h2>Printer</h2>
+          <p id="printerLine" class="muted"></p>
+          <div class="row">
+            <select id="printerSel" aria-label="Printer"></select>
+            <button class="btn" id="savePrinter" type="button">Use this printer</button>
+            <button class="btn" id="testPrint" type="button">Print test page</button>
+          </div>
+          <p id="printerMsg" class="muted small"></p>
+        </div>
+        <div class="card"><h2>System</h2><dl id="sysList" class="kv"></dl></div>
+      </section>
+
+      <section id="tab-jobs" class="tab" hidden>
+        <div class="card nopad"><div class="tablewrap"><table id="jobsTable">
+          <thead><tr><th>Time</th><th>File</th><th>Details</th><th>Amount</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+          <p id="jobsEmpty" class="muted pad" hidden>No jobs yet.</p></div>
+      </section>
+
+      <section id="tab-settings" class="tab" hidden>
+        <form id="settingsForm" class="stack">
+          <div class="card"><h2>Business</h2>
+            <label>Name shown to customers <input name="business_name" maxlength="60"></label>
+            <label>Tagline <input name="tagline" maxlength="100"></label>
+            <label>Message when printing is done <input name="pickup_message" maxlength="240" placeholder="Please collect from the tray next to the door."></label>
+            <label>Support contact (shown if a refund fails) <input name="support_contact" maxlength="120" placeholder="Phone or email"></label>
+          </div>
+          <div class="card"><h2>Prices</h2>
+            <div class="two">
+              <label>Black &amp; white, per page (₹) <input name="price_bw" type="number" step="0.5" min="0"></label>
+              <label>Colour, per page (₹) <input name="price_color" type="number" step="0.5" min="0"></label>
+            </div>
+            <label>Minimum charge per job (₹) <input name="min_charge" type="number" step="0.5" min="0"></label>
+            <div class="two">
+              <label>Max pages per job <input name="max_pages" type="number" min="1"></label>
+              <label>Max copies <input name="max_copies" type="number" min="1"></label>
+            </div>
+            <label>Max documents per order <input name="max_docs" type="number" min="1" max="20"></label>
+            <label>Max file size (MB) <input name="max_file_mb" type="number" min="1" max="50"></label>
+            <div class="two">
+              <label class="check"><input type="checkbox" name="allow_color"> Allow colour</label>
+              <label class="check"><input type="checkbox" name="allow_duplex"> Allow double-sided</label>
+            </div>
+            <label>Paper size <select name="default_paper"><option>A4</option><option>Letter</option><option>A3</option><option>Legal</option></select></label>
+          </div>
+          <div class="card"><h2>Payments</h2>
+            <label>Mode
+              <select name="payment_mode"><option value="free">Free (no payment, good for testing or private use)</option><option value="razorpay">Razorpay (customers pay before printing)</option></select></label>
+            <div id="rzFields">
+              <label>Key ID <input name="razorpay_key_id" placeholder="rzp_live_..." autocomplete="off" spellcheck="false"></label>
+              <label>Key Secret <input name="razorpay_key_secret" type="password" autocomplete="new-password" placeholder="" spellcheck="false"><small class="muted" id="secretState"></small></label>
+              <label>Webhook secret <input name="razorpay_webhook_secret" type="password" autocomplete="new-password" spellcheck="false"><small class="muted" id="whState"></small></label>
+              <div class="note">
+                <b>Set up the webhook in Razorpay</b> so payments are never lost if a customer closes their browser: Dashboard → Settings → Webhooks → add <code id="whUrl"></code> with events <code>payment.captured</code> and <code>order.paid</code>, and paste the secret you choose above. Live payments need your site on <b>HTTPS</b> (see the README, Cloudflare Tunnel).
+              </div>
+            </div>
+          </div>
+          <div class="card"><h2>Documents &amp; privacy</h2>
+            <label class="check"><input type="checkbox" name="enable_office"> Accept Word / Excel / PowerPoint files <small class="muted">(converted with LibreOffice; slow on a Pi Zero 2 W, about 20–60 s per file)</small></label>
+            <label>Delete files after (minutes) <input name="retention_minutes" type="number" min="1" max="1440"></label>
+          </div>
+          <div class="card"><h2>Alerts &amp; links</h2>
+            <label>Alert webhook URL <input name="notify_webhook" placeholder="https://ntfy.sh/my-secret-topic" spellcheck="false"><small class="muted">Called when a print or refund fails. Works with ntfy.sh, Slack and Discord webhooks.</small></label>
+            <label>Public website address <input name="public_url" placeholder="https://print.example.com" spellcheck="false"><small class="muted">Used for the QR poster.</small></label>
+            <div class="two">
+              <label>Terms URL (optional) <input name="terms_url"></label>
+              <label>Privacy URL (optional) <input name="privacy_url"></label>
+            </div>
+            <label>Refund policy URL (optional) <input name="refund_url"><small class="muted">Leave blank to use the built-in template pages, which you should review before going live.</small></label>
+          </div>
+          <div id="saveError" class="error" role="alert" hidden></div>
+          <div class="savebar"><button class="btn primary" type="submit" id="saveBtn">Save settings</button><span id="saveOk" class="ok" hidden>Saved ✓</span></div>
+        </form>
+
+        <form id="pwForm" class="card stack">
+          <h2>Change admin password</h2>
+          <label>Current password <input id="pwCur" type="password" autocomplete="current-password"></label>
+          <label>New password (10+ characters) <input id="pwNew" type="password" autocomplete="new-password"></label>
+          <div id="pwMsg" class="small" hidden></div>
+          <button class="btn" type="submit">Change password</button>
+        </form>
+      </section>
+
+      <section id="tab-poster" class="tab" hidden>
+        <div class="card center poster">
+          <h2 id="posterName"></h2>
+          <p class="muted">Scan to print from your phone</p>
+          <div id="qr" class="qr"></div>
+          <p id="posterUrl" class="muted"></p>
+          <button class="btn noprint" id="printPoster" type="button">Print this poster</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="/admin/assets/admin.js" defer></script>
+</body>
+</html>
