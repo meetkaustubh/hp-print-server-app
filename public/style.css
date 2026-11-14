@@ -401,3 +401,31 @@ body.is-empty #pickError{max-width:560px;width:100%}
 .opts{padding:0;gap:8px}
 .opts .field{margin:0;gap:8px}
 .opts .stepper input{border:0}
+
+/* ---------- home page polish ---------- */
+body{font-family:Roboto,"Segoe UI",Arial,sans-serif}
+.top{padding:36px 16px 4px;gap:10px}
+.top img{width:60px;height:60px;margin-top:4px}
+.brand h1{font-family:Roboto,"Segoe UI",Arial,sans-serif;font-size:clamp(30px,5vw,42px);font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.brand p{font-size:16px;margin-top:4px}
+body.is-empty main{justify-content:flex-start}
+body.is-empty #screenCart{justify-content:flex-start;padding:28px 0 8vh}
+body.is-empty #emptyState{padding:0;background:transparent}
+.drop{background:var(--bg);border:2px dashed var(--line);border-radius:20px;padding:44px 24px 32px;gap:6px;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--brand);background:var(--chip)}
+.dropicon{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--chip);color:var(--ink);margin-bottom:10px}
+.drop strong{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.dropsub{color:var(--muted);font-size:15px}
+.pickbtn{margin-top:14px;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 28px;border-radius:22px;background:var(--ink);color:var(--bg);font-weight:600;font-size:16px}
+.drop:hover .pickbtn{opacity:.88}
+.drop small{margin-top:16px;color:var(--muted);font-size:13px}
+.drop .paperhint{margin-top:8px;display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:999px;background:var(--chip);color:var(--ink);font-weight:500}
+.drop .paperhint::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.drop .paperhint.low::before{background:var(--bad)}.drop .paperhint.low{color:var(--bad)}
+.how{display:flex;justify-content:center;gap:28px;margin:26px 0 0;padding:0;list-style:none;color:var(--muted);font-size:14px}
+.how li{display:flex;align-items:center;gap:8px}
+.how b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--chip);color:var(--ink);font-size:12px;font-weight:700;margin:0}
+@media(max-width:480px){.how{gap:12px;font-size:13px}.how li{flex-direction:column;gap:6px;text-align:center}}
+.drop .pickbtn{color:var(--bg)}
+.drop .dropicon{color:var(--ink)}
+@media(max-width:600px){.top{padding-top:64px}}
