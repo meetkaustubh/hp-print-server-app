@@ -13,7 +13,7 @@ const checkout = (items, hdr = X) => ctx.api('POST', '/api/checkout', { items },
 test('colour billing per page: only pages with colour pay the colour rate', async () => {
   ctx.settings.set({ color_billing: 'per_page', payment_mode: 'razorpay' }); H.enableRazorpay(ctx);
   const id = await upload(10);
-  const r = await checkout([{ id, copies: 1, color: true, duplex: false, colour_pages: [2, 3, 99] }]);   // 99 is not a page: ignored
+  const r = await checkout([{ id, copies: 1, color: true, duplex: false, colour_pages: { 2: 0.05, 3: 0.05, 99: 1 } }]);   // 99 is not a page: ignored
   assert.equal(r.status, 200, JSON.stringify(r.json));
   assert.equal(r.json.batch.amount, 2 * 500 + 8 * 100);
   const id2 = await upload(10);
@@ -24,7 +24,7 @@ test('colour billing per page: only pages with colour pay the colour rate', asyn
 test('colour billing "all": every page at colour rate', async () => {
   ctx.settings.set({ color_billing: 'all' });
   const id = await upload(4);
-  assert.equal((await checkout([{ id, copies: 1, color: true, duplex: false, colour_pages: [1] }])).json.batch.amount, 4 * 500);
+  assert.equal((await checkout([{ id, copies: 1, color: true, duplex: false, colour_pages: { 1: 0.05 } }])).json.batch.amount, 4 * 500);
 });
 
 test('bulk rate applies to the whole order once it reaches the page threshold', async () => {
@@ -78,4 +78,21 @@ test('test mode: simulated payment, success and failure paths, refund outcomes, 
   // test endpoints are dead when test mode is off
   ctx.settings.set({ test_mode: false });
   assert.equal((await ctx.api('POST', '/api/checkout/test-pay', { batch_id: t.batch, outcome: 'success' }, X)).status, 403);
+});
+
+test('heavy colour surcharge: +20% / +50% / +100% by how much of the page is coloured', async () => {
+  ctx.settings.set({ payment_mode: 'razorpay', color_billing: 'per_page', bulk_min_pages: 0 });
+  const id = await upload(6);
+  // page1 light (5%), page2 medium (15%), page3 medium-high (40%), page4 high (80%); pages 5-6 no colour
+  const r = await checkout([{ id, copies: 1, color: true, duplex: false, colour_pages: { 1: 0.05, 2: 0.15, 3: 0.4, 4: 0.8 } }]);
+  assert.equal(r.json.batch.amount, 500 + 600 + 750 + 1000 + 2 * 100);
+  // billing "all": uncoloured pages also pay the colour price
+  ctx.settings.set({ color_billing: 'all' });
+  const id2 = await upload(3);
+  const r2 = await checkout([{ id: id2, copies: 2, color: true, duplex: false, colour_pages: { 1: 0.8 } }]);
+  assert.equal(r2.json.batch.amount, 2 * (1000 + 500 + 500));
+  // an extra of 0 switches a level off
+  ctx.settings.set({ color_high_extra: 0 });
+  const id3 = await upload(1);
+  assert.equal((await checkout([{ id: id3, copies: 1, color: true, duplex: false, colour_pages: { 1: 0.8 } }])).json.batch.amount, 750);
 });

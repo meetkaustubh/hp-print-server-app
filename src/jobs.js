@@ -92,13 +92,16 @@ class JobService {
     const selected = parsePageRange(range, job.pages_total);
     if (!selected) throw new UserError(`Page range is not valid. Use something like 1-3,5 (this document has ${job.pages_total} pages).`);
     // how many selected pages contain colour (reported by the browser; only matters for per-page colour billing)
-    let colourPages = null;
-    if (color && s.color_billing === 'per_page' && Array.isArray(raw.colour_pages)) {
-      const sel = new Set(selected);
-      colourPages = new Set(raw.colour_pages.map(Number).filter(p => Number.isInteger(p) && sel.has(p))).size;
+    let colourMap = null;
+    if (color && raw.colour_pages && typeof raw.colour_pages === 'object' && !Array.isArray(raw.colour_pages)) {
+      const sel = new Set(selected); colourMap = {};
+      for (const [k, v] of Object.entries(raw.colour_pages)) {
+        const p = Number(k), cov = Number(v);
+        if (Number.isInteger(p) && sel.has(p) && Number.isFinite(cov)) colourMap[p] = Math.min(1, Math.max(0, cov));
+      }
     }
-    const amount = computePrice(s, { pages: selected.length, copies, color, colourPages });
-    return { copies, color, duplex, paper, selected, page_range: range ? compactRange(selected) : '', amount, colourPages };
+    const amount = computePrice(s, { pages: selected.length, copies, color, colourMap });
+    return { copies, color, duplex, paper, selected, page_range: range ? compactRange(selected) : '', amount, colourMap };
   }
 
   /**
@@ -135,7 +138,7 @@ class JobService {
     }
     // bulk rate: decided on the whole order, then every document is re-priced with it
     const orderPages = rows.reduce((n, r) => n + r.q.selected.length * r.q.copies, 0);
-    if (isBulk(s, orderPages)) for (const r of rows) r.q.amount = computePrice(s, { pages: r.q.selected.length, copies: r.q.copies, color: r.q.color, colourPages: r.q.colourPages, bulk: true });
+    if (isBulk(s, orderPages)) for (const r of rows) r.q.amount = computePrice(s, { pages: r.q.selected.length, copies: r.q.copies, color: r.q.color, colourMap: r.q.colourMap, bulk: true });
     // order-level minimum charge: any top-up is attributed to the first document
     let total = rows.reduce((n, r) => n + r.q.amount, 0);
     if (total > 0 && total < s.min_charge) { rows[0].q.amount += s.min_charge - total; total = s.min_charge; }
