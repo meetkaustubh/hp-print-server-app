@@ -22,13 +22,14 @@
     <section id="screenCart">
       <div id="emptyState" class="card">
         <label id="drop" class="drop" for="file">
-          <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <strong>Tap to choose files</strong>
-          <span>or drop them here</span>
+          <span class="dropicon" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M12 16V5m0 0L7.5 9.5M12 5l4.5 4.5M5 16v2.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <strong>Upload your files</strong>
+          <span class="dropsub">Drag &amp; drop them here, or</span>
+          <span class="pickbtn">Choose files</span>
           <small id="acceptHint"></small>
           <small id="paperHint" class="paperhint" hidden></small>
         </label>
-        <ol class="how"><li><b>1</b> Upload</li><li><b>2</b> Pick options</li><li><b>3</b> Pay &amp; collect</li></ol>
+        <ol class="how"><li><b>1</b><span>Upload</span></li><li><b>2</b><span>Pick options</span></li><li><b>3</b><span>Pay &amp; collect</span></li></ol>
       </div>
       <input id="file" type="file" class="sr-only" multiple>
       <div id="pickError" class="error" role="alert" hidden></div>
