@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Print Nimbus launcher for macOS / Linux laptops (uses CUPS).
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 command -v node >/dev/null || { echo "Install Node.js 22 LTS from https://nodejs.org first."; exit 1; }
 [ -d node_modules ] || npm ci --omit=dev --no-audit --no-fund
 export PORT="${PORT:-3000}" PRINT_BACKEND="${PRINT_BACKEND:-cups}"
