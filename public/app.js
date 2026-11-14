@@ -252,13 +252,13 @@
     const setCopies = n => { d.opts.copies = clampCopies(n); r.copies.value = d.opts.copies; refreshDoc(d); saveCart(); };
     r.pagesBtn = h('button', { class: 'pagesbtn', type: 'button', onclick: () => openPicker(d) });
     r.chips = h('div', { class: 'chips' });
-    ui.opts.replaceChildren(
+    ui.opts.replaceChildren(...[
       h('div', { class: 'orow' }, h('span', { class: 'label', text: 'Copies' }), h('div', { class: 'stepper' }, h('button', { type: 'button', 'aria-label': 'Fewer copies', text: '−', onclick: () => setCopies(d.opts.copies - 1) }), r.copies, h('button', { type: 'button', 'aria-label': 'More copies', text: '+', onclick: () => setCopies(d.opts.copies + 1) }))),
       cfg.allow_color ? h('div', { class: 'field' }, h('span', { class: 'label', text: 'Colour' }), seg('color', ['Black & white', '₹' + (cfg.price_bw / 100) + '/page'], ['Colour', '₹' + (cfg.price_color / 100) + '/page'])) : null,
       cfg.allow_duplex ? h('div', { class: 'field' }, h('span', { class: 'label', text: 'Sides' }), seg('duplex', ['Single-sided'], ['Double-sided'])) : null,
       h('div', { class: 'field' }, h('span', { class: 'label', text: 'Pages' }), r.pagesBtn),
       r.chips,
-      h('button', { class: 'link danger rmbtn', type: 'button', text: 'Remove this file', onclick: () => removeDoc(d) }));
+      h('button', { class: 'link danger rmbtn', type: 'button', text: 'Remove this file', onclick: () => removeDoc(d) })].filter(Boolean));
   }
   function updateOpts(d) {
     const r = d.ui.o; if (!r) return; const n = selSet(d).size;
