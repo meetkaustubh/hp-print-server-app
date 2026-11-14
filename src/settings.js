@@ -32,6 +32,14 @@ const DEFAULTS = {
   privacy_url: '',
   refund_url: '',
   public_url: '',         // used for the QR poster
+  color_billing: 'all',        // all = every selected page at the colour price | per_page = colour price only for pages that contain colour
+  color_sensitivity: 'high',   // how much colour a page needs before it counts as a colour page: high | medium | low
+  bulk_min_pages: 0,           // 0 = off. Orders with at least this many pages (pages x copies, all documents) use the bulk prices
+  bulk_price_bw: 0,            // paise per page; 0 = same as the normal price
+  bulk_price_color: 0,
+  test_mode: false,            // simulated payments + optional simulated printing/refunds
+  test_print_outcome: 'real',  // real | success | fail
+  test_refund_outcome: 'success', // success | fail
   admin_password_hash: '',
   admin_username: '',     // laptop: chosen at setup. Pi: only used if the board has no serial number
 };
@@ -62,6 +70,9 @@ const VALIDATORS = {
   razorpay_key_id: v => { v = str(80)(v); if (v && !/^rzp_(live|test)_[A-Za-z0-9]+$/.test(v)) throw new Error('should look like rzp_live_xxx or rzp_test_xxx'); return v; },
   razorpay_key_secret: str(120), razorpay_webhook_secret: str(120),
   retention_minutes: int(1, 1440), retain_files: bool,
+  color_billing: oneOf(['all', 'per_page']), color_sensitivity: oneOf(['high', 'medium', 'low']),
+  bulk_min_pages: int(0, 100000), bulk_price_bw: int(0, 1_000_000), bulk_price_color: int(0, 1_000_000),
+  test_mode: bool, test_print_outcome: oneOf(['real', 'success', 'fail']), test_refund_outcome: oneOf(['success', 'fail']),
   notify_webhook: url, terms_url: url, privacy_url: url, refund_url: url, public_url: url,
 };
 
@@ -112,6 +123,8 @@ class Settings {
       currency: s.currency, price_bw: s.price_bw, price_color: s.price_color, min_charge: s.min_charge,
       max_pages: s.max_pages, max_copies: s.max_copies, max_docs: s.max_docs, max_file_mb: s.max_file_mb, default_paper: s.default_paper,
       allow_duplex: s.allow_duplex, allow_color: s.allow_color, payment_mode: s.payment_mode, paper_tracking: s.paper_tracking,
+      color_billing: s.color_billing, color_sensitivity: s.color_sensitivity, test_mode: s.test_mode,
+      bulk_min_pages: s.bulk_min_pages, bulk_price_bw: s.bulk_price_bw || s.price_bw, bulk_price_color: s.bulk_price_color || s.price_color,
       razorpay_key_id: s.payment_mode === 'razorpay' ? s.razorpay_key_id : '',
       accepts: this.acceptedExtensions(),
       terms_url: s.terms_url, privacy_url: s.privacy_url, refund_url: s.refund_url,

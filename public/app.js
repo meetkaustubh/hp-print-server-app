@@ -49,6 +49,7 @@
   async function loadConfig() {
     try { cfg = await api('GET', '/api/config'); } catch { $('pill').textContent = 'Offline'; $('pill').classList.add('bad'); return; }
     document.title = cfg.business_name; $('bizName').textContent = cfg.business_name; $('tagline').textContent = cfg.tagline;
+    show($('testBanner'), !!cfg.test_mode);
     $('pill').textContent = cfg.ready ? 'Printer ready' : 'Unavailable'; $('pill').classList.toggle('bad', !cfg.ready);
     $('file').accept = cfg.accepts.map(e => '.' + e).join(','); $('file').disabled = !cfg.ready;
     $('drop').style.opacity = cfg.ready ? '' : '.5';
@@ -104,7 +105,10 @@
       if (Math.max(r, g, b) - Math.min(r, g, b) > 40) colour++;
       if ((r + g + b) / 3 < 235) ink++;
     }
-    return { colour: colour >= 12, blank: ink <= 2 };
+    // how much colour a page needs to count as a colour page is the admin's "colour detection level"
+    const frac = colour / (w * hgt), lvl = (cfg && cfg.color_sensitivity) || 'high';
+    const isColour = lvl === 'low' ? frac >= 0.025 : lvl === 'medium' ? frac >= 0.004 : colour >= 12;
+    return { colour: isColour, blank: ink <= 2 };
   }
 
   /* ---------- documents ---------- */
@@ -114,8 +118,16 @@
       colourPages: new Set(), blankPages: new Set(), analysed: false, expanded: false, opts: { copies: 1, color: false, duplex: false, selected: null }, el: null, ui: {} };
   }
   const selSet = d => d.opts.selected || allPages(d.pages);
-  const unitPrice = d => d.opts.color ? cfg.price_color : cfg.price_bw;
-  const docCost = d => selSet(d).size * d.opts.copies * unitPrice(d);
+  /* Mirrors src/pricing.js. The server recomputes everything at checkout; this is only for the on-screen price. */
+  const orderPages = () => docs.filter(x => x.state === 'ready').reduce((n, x) => n + selSet(x).size * x.opts.copies, 0);
+  const bulkNow = () => cfg.bulk_min_pages > 0 && orderPages() >= cfg.bulk_min_pages;
+  const colourSel = d => { const s = selSet(d); return [...d.colourPages].filter(p => s.has(p)); };
+  const perPage = d => d.opts.color && cfg.color_billing === 'per_page' && d.analysed;
+  function docCost(d) {
+    const bulk = bulkNow(), pc = bulk ? cfg.bulk_price_color : cfg.price_color, pb = bulk ? cfg.bulk_price_bw : cfg.price_bw, n = selSet(d).size;
+    const per = !d.opts.color ? n * pb : perPage(d) ? colourSel(d).length * pc + (n - colourSel(d).length) * pb : n * pc;
+    return per * d.opts.copies;
+  }
 
   function addFiles(list) {
     showPickError('');
@@ -225,7 +237,7 @@
       const colourSel = [...d.colourPages].filter(p => sel.has(p));
       if (!d.colourPages.size) out.push(h('p', { class: 'chip good', text: d.opts.color ? '✔ No colour found in this file. B&W would look the same and cost less.' : '✔ No colour detected: black & white is all you need.' }));
       else if (d.opts.color && !colourSel.length) out.push(h('p', { class: 'chip warn', text: 'The pages you picked have no colour. B&W would cost less.' }));
-      else out.push(h('p', { class: 'chip' }, `🎨 Colour on ${plural(d.colourPages.size, 'page')}${d.colourPages.size <= 6 ? ': ' + compact(d.colourPages) : ''}`, d.colourPages.size < d.pages ? h('button', { class: 'link', type: 'button', text: 'Print only these', onclick: () => { d.opts.selected = new Set(d.colourPages); d.opts.color = true; syncRadios(d); refreshDoc(d); saveCart(); } }) : null));
+      else out.push(h('p', { class: 'chip' }, `🎨 Colour on ${plural(d.colourPages.size, 'page')}${d.colourPages.size <= 6 ? ': ' + compact(d.colourPages) : ''}`, d.opts.color && cfg.color_billing === 'per_page' ? ' · only these pages pay the colour price' : '', d.colourPages.size < d.pages ? h('button', { class: 'link', type: 'button', text: 'Print only these', onclick: () => { d.opts.selected = new Set(d.colourPages); d.opts.color = true; syncRadios(d); refreshDoc(d); saveCart(); } }) : null));
       const blankSel = [...d.blankPages].filter(p => sel.has(p));
       if (blankSel.length) out.push(h('p', { class: 'chip' }, `📄 ${plural(blankSel.length, 'blank page')} found`, h('button', { class: 'link', type: 'button', text: 'Skip blank pages', onclick: () => { const s2 = new Set(sel); blankSel.forEach(p => s2.delete(p)); if (!s2.size) return; d.opts.selected = s2.size === d.pages ? null : s2; refreshDoc(d); saveCart(); } })));
     }
@@ -289,6 +301,12 @@
     const ready = docs.filter(d => d.state === 'ready'), pending = docs.some(d => d.state === 'queued' || d.state === 'processing'), failed = docs.some(d => d.state === 'error');
     let total = ready.reduce((n, d) => n + docCost(d), 0); if (total > 0) total = Math.max(total, cfg.min_charge);
     const sheets = ready.reduce((n, d) => n + selSet(d).size * d.opts.copies, 0);
+    const bh = $('bulkHint'), bulkOn = cfg.bulk_min_pages > 0;
+    if (bh) {
+      const pgs = orderPages(), need = cfg.bulk_min_pages - pgs;
+      bh.textContent = !bulkOn || !ready.length || cfg.payment_mode === 'free' && !cfg.test_mode ? '' : need <= 0 ? `Bulk rate applied: ${money(cfg.bulk_price_bw)} B&W / ${money(cfg.bulk_price_color)} colour per page` : `Print ${plural(need, 'more page')} to get the bulk rate (${money(cfg.bulk_price_bw)} B&W / ${money(cfg.bulk_price_color)} colour per page)`;
+      bh.classList.toggle('on', bulkOn && need <= 0); show(bh, !!bh.textContent);
+    }
     $('sumDetail').textContent = ready.length ? `${plural(ready.length, 'document')} · ${plural(sheets, 'page')} to print` : '';
     $('sumTotal').textContent = ready.length ? (total ? money(total) : 'Free') : '';
     const free = cfg.payment_mode === 'free' || total === 0;
@@ -355,13 +373,30 @@
   /* ---------- checkout ---------- */
   async function pay() {
     if (busy) return; busy = true; layoutTotals(); $('optsError').textContent = ''; show($('optsError'), false);
-    const items = docs.filter(d => d.state === 'ready').map(d => ({ id: d.id, copies: d.opts.copies, color: d.opts.color, duplex: d.opts.duplex, page_range: d.opts.selected ? compact(d.opts.selected) : '' }));
+    const items = docs.filter(d => d.state === 'ready').map(d => ({ id: d.id, copies: d.opts.copies, color: d.opts.color, duplex: d.opts.duplex, page_range: d.opts.selected ? compact(d.opts.selected) : '', colour_pages: perPage(d) ? colourSel(d) : undefined }));
     try {
       const res = await api('POST', '/api/checkout', { items });
       batchId = res.batch.id;
       if (!res.order) return beginStatus();
+      if (res.order.test) return openTestPay(res);
       openRazorpay(res);
     } catch (e) { $('optsError').textContent = e.message; show($('optsError'), true); busy = false; layoutTotals(); }
+  }
+  /* Test mode: our own pretend payment window instead of Razorpay */
+  function openTestPay({ order, batch }) {
+    const dlg = $('testpay'); $('tpAmount').textContent = money(order.amount); $('tpErr').textContent = ''; show($('tpErr'), false);
+    const done = () => { try { dlg.close(); } catch {} };
+    const go = async outcome => {
+      try {
+        const r = await api('POST', '/api/checkout/test-pay', { batch_id: batch.id, outcome });
+        if (!r.ok) { $('tpErr').textContent = r.error; show($('tpErr'), true); return; }
+        done(); beginStatus();
+      } catch (e) { $('tpErr').textContent = e.message; show($('tpErr'), true); }
+    };
+    $('tpOk').onclick = () => go('success'); $('tpFail').onclick = () => go('fail');
+    $('tpClose').onclick = () => { done(); busy = false; layoutTotals(); };
+    dlg.onclose = () => { if (!$('screenStatus').hidden) return; busy = false; layoutTotals(); };
+    dlg.showModal();
   }
   function openRazorpay({ order, batch }) {
     if (typeof window.Razorpay !== 'function') { $('optsError').textContent = 'The payment window could not load. Check your internet connection and try again.'; show($('optsError'), true); busy = false; layoutTotals(); return; }

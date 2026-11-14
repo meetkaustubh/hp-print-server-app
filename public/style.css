@@ -466,3 +466,15 @@ body.is-empty #emptyState{padding:0;background:transparent}
   .opts .orow .stepper{justify-self:start}
 }
 .opts .rmbtn{width:100%;text-align:left}
+
+/* ---------- bulk hint + test mode ---------- */
+.bulkhint{margin:6px 0 0;font-size:14px;color:var(--muted)}
+.bulkhint.on{color:var(--ok);font-weight:600}
+.testbanner{position:sticky;top:0;z-index:30;padding:8px 16px;text-align:center;background:#fff4d6;color:#7a4b00;font-weight:700;font-size:14px;border-bottom:1px solid #f0d58a}
+.testbanner[hidden]{display:none}
+dialog.testpay{border:0;border-radius:20px;padding:24px;max-width:380px;width:calc(100% - 32px);background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog.testpay::backdrop{background:rgba(0,0,0,.5)}
+dialog.testpay h2{margin:0 0 6px}
+dialog.testpay .btn{margin-top:10px}
+dialog.testpay .link{display:block;margin:14px auto 0}
+.tpamount{font-size:34px;font-weight:700;margin:10px 0;text-align:center}

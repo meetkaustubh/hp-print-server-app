@@ -90,3 +90,10 @@ PRINT_BACKEND=dryrun npm run dev      # no printer needed; "printed" PDFs land i
 npm test                               # 37 tests: payments, refunds, multi-doc orders, uploads, EXIF, admin security
 ./scripts/build-dist.sh                # builds dist/printnimbus-laptop-<ver>.zip and dist/printnimbus-pi-<ver>.zip
 ```
+
+## Pricing rules, free admin printing and test mode
+
+* **Colour billing / detection level** (Settings → Colour & bulk pricing): charge the colour price only for pages that really contain colour, and choose how much colour a page needs (high / medium / low) to count. The browser reports which pages have colour; the server recomputes the price.
+* **Bulk rate:** once one order reaches the page count you set (pages × copies, all documents), every page uses the bulk prices.
+* **Print (free)** tab: upload and print for yourself with no charge. Not counted as revenue.
+* **Test lab** tab: simulated payment window (pay / decline), plus forced print failure and refund failure to check refunds and alerts. Test payments never reach Razorpay and never count as revenue. Switch it off before going live.

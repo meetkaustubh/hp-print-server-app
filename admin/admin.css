@@ -79,3 +79,8 @@ td .btn{display:inline-block;width:auto;min-height:34px;padding:0 12px;font-size
 
 @media print{.dash{display:block}}
 a.btn{display:inline-flex;align-items:center;text-decoration:none}
+
+.narrow{max-width:620px}
+.tmsteps{padding-left:20px;margin:16px 0 0}
+#tmOptions{margin-top:12px}
+.narrow a.btn{width:auto;padding:0 18px;display:inline-flex;align-items:center;text-decoration:none}

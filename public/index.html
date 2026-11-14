@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+  <div id="testBanner" class="testbanner" role="status" hidden>TEST MODE: payments are simulated and no real money is used.</div>
   <header class="top">
     <img id="logo" src="/brand-logo" alt="" width="56" height="56">
     <div class="brand"><h1 id="bizName">Print</h1><p id="tagline"></p></div>
@@ -42,6 +43,7 @@
 
       <div id="paybar" class="paybar sticky" hidden>
         <div class="sum"><span id="sumDetail" class="muted"></span><strong id="sumTotal"></strong></div>
+        <p id="bulkHint" class="bulkhint" hidden></p>
         <div id="optsError" class="error" role="alert" hidden></div>
         <button id="payBtn" class="btn primary" type="button">Pay &amp; print</button>
         <button id="cancelAll" class="btn cancelall" type="button">Cancel &amp; clear all</button>
@@ -62,6 +64,15 @@
   </main>
 
   <!-- Page picker -->
+  <dialog id="testpay" class="testpay" aria-labelledby="tpTitle">
+    <h2 id="tpTitle">Test payment</h2>
+    <p class="muted">Test mode: no real money moves. Choose what the payment should do.</p>
+    <p class="tpamount" id="tpAmount"></p>
+    <div id="tpErr" class="error" role="alert" hidden></div>
+    <button id="tpOk" class="btn primary" type="button">Pay successfully</button>
+    <button id="tpFail" class="btn" type="button">Decline the payment</button>
+    <button id="tpClose" class="link" type="button">Close without paying</button>
+  </dialog>
   <dialog id="picker" class="picker" aria-labelledby="pickerTitle">
     <div class="pk-head">
       <div><h2 id="pickerTitle">Choose pages</h2><p id="pickerSub" class="muted"></p></div>

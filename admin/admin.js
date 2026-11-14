@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   const show = (el, on = true) => { el.hidden = !on; };
   const H = { 'Content-Type': 'application/json', 'X-Requested-With': 'printnimbus' };
-  const PRICE_KEYS = ['price_bw', 'price_color', 'min_charge'];
+  const PRICE_KEYS = ['price_bw', 'price_color', 'min_charge', 'bulk_price_bw', 'bulk_price_color'];
   let settings = null, session = null;
 
   async function api(method, url, body) {
@@ -52,8 +52,8 @@
   function tab(name) {
     document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
     document.querySelectorAll('.tab').forEach(t => show(t, t.id === 'tab-' + name));
-    if (name === 'jobs') loadJobs(); if (name === 'dash') loadDash(); if (name === 'poster') loadPoster();
-    $('pageTitle').textContent = { dash: 'Dashboard', jobs: 'Jobs', settings: 'Settings', poster: 'QR poster' }[name] || 'Dashboard';
+    if (name === 'test') loadTest(); if (name === 'jobs') loadJobs(); if (name === 'dash') loadDash(); if (name === 'poster') loadPoster();
+    $('pageTitle').textContent = { dash: 'Dashboard', jobs: 'Jobs', print: 'Print (free)', settings: 'Settings', test: 'Test lab', poster: 'QR poster' }[name] || 'Dashboard';
     window.scrollTo(0, 0);
     history.replaceState(null, '', '#' + name);
   }
@@ -78,6 +78,7 @@
     const add = (t, cls = '') => alerts.append(el('div', { className: 'alert ' + cls, textContent: t }));
     if (stats.needs_attention) add(`${stats.needs_attention} refund(s) failed. Open Jobs and use “Retry refund”, or refund from the Razorpay dashboard.`);
     if (!pr.status.ready) add(`Printer not ready: ${pr.status.detail || pr.status.state}`);
+    if (settings.test_mode) add('TEST MODE is ON: customers see simulated payments. Turn it off in Test lab before going live.', 'warn');
     if (settings.payment_mode === 'free') add('Payments are OFF: anyone can print for free. Turn on Razorpay in Settings.', 'warn');
     if (settings.payment_mode === 'razorpay' && !settings.razorpay_webhook_secret_set) add('No Razorpay webhook secret set. Payments made when a customer closes their browser early would not print. See Settings → Payments.', 'warn');
     if (sys.print_backend === 'dryrun') add('Running in DRY-RUN mode: nothing is sent to a real printer.', 'warn');
@@ -136,7 +137,9 @@
         el('td', { textContent: j.pages_selected ? `${j.pages_selected}p × ${j.copies}${j.color ? ' colour' : ' b/w'}${j.duplex ? ' duplex' : ''}` : '—' }),
         el('td', { textContent: j.amount ? rupees(j.amount) : '—' }),
       );
+      const tag = (t, c) => el('span', { className: 'badge ' + c, textContent: t, style: 'margin-left:6px' });
       const st = el('td', { className: 'wrap' }, el('span', { className: 'badge' + (BAD.has(j.status) ? ' bad' : ['uploaded', 'awaiting_payment', 'refunded'].includes(j.status) ? ' grey' : ''), textContent: j.status.replace('_', ' ') }));
+      if (j.test) st.append(tag('TEST', 'grey')); if (j.source === 'admin') st.append(tag('ADMIN · FREE', 'grey'));
       if (withActions) { if (j.error) st.append(el('small', { textContent: j.error })); if (j.payment_id) st.append(el('small', { textContent: j.payment_id })); }
       tr.append(st);
       if (withActions) {
@@ -215,6 +218,36 @@
     catch (err) { m.textContent = err.message; m.className = 'small error'; }
     show(m, true);
   });
+
+  /* ---------- free admin print ---------- */
+  $('adminPrintForm').addEventListener('submit', async e => {
+    e.preventDefault(); const m = $('apMsg'), btn = $('apBtn'), f = $('apFile').files[0]; if (!f) return;
+    const say = (t, cls = '') => { m.textContent = t; m.className = 'small ' + cls; show(m, true); };
+    btn.disabled = true; say('Uploading…');
+    try {
+      const fd = new FormData(); fd.append('file', f);
+      const up = await fetch('/api/uploads', { method: 'POST', body: fd, credentials: 'same-origin' }).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Upload failed'); return j; });
+      const r = await api('POST', '/api/admin/print', { id: up.job.id, copies: Number($('apCopies').value) || 1, color: $('apColor').value === 'true', duplex: $('apDuplex').value === 'true', page_range: $('apRange').value });
+      say(`Sent to the printer: ${r.job.original_name} (${r.job.pages_selected} page${r.job.pages_selected === 1 ? '' : 's'} × ${r.job.copies}). No charge.`, 'ok');
+      $('adminPrintForm').reset();
+    } catch (err) { say(err.message, 'error'); }
+    btn.disabled = false;
+  });
+
+  /* ---------- test lab ---------- */
+  function loadTest() {
+    $('tmOn').checked = !!settings.test_mode; $('tmPrint').value = settings.test_print_outcome; $('tmRefund').value = settings.test_refund_outcome;
+    show($('tmOptions'), !!settings.test_mode);
+  }
+  async function saveTest() {
+    const m = $('tmMsg');
+    try {
+      settings = await api('PUT', '/api/admin/settings', { test_mode: $('tmOn').checked, test_print_outcome: $('tmPrint').value, test_refund_outcome: $('tmRefund').value });
+      m.textContent = settings.test_mode ? 'Test mode is ON. Customers now see simulated payments.' : 'Test mode is OFF. Real payments and the real printer are in use.'; m.className = 'small ok'; show(m, true);
+      loadTest();
+    } catch (e) { m.textContent = e.message; m.className = 'small error'; show(m, true); }
+  }
+  ['tmOn', 'tmPrint', 'tmRefund'].forEach(id => $(id).addEventListener('change', saveTest));
 
   /* ---------- poster ---------- */
   async function loadPoster() {
